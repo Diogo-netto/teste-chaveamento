@@ -265,705 +265,931 @@
             </div>
         </main>
     </div>
+<script>
+    // --- STATE MANAGEMENT ---
+    const State = {
+        categories: [],
+        currentCategoryId: null,
 
-    <script>
-        // --- STATE MANAGEMENT ---
-        const State = {
-            categories: [],
-            currentCategoryId: null,
-            
-            // Helpers
-            getCurrentCategory: () => State.categories.find(c => c.id === State.currentCategoryId),
-            save: () => {
-                try {
-                    localStorage.setItem('altm_data_v3_fixed', JSON.stringify(State.categories));
-                } catch(e) { console.error("Erro ao salvar", e); }
-            },
-            load: () => {
-                try {
-                    const data = localStorage.getItem('altm_data_v3_fixed');
-                    if (data) State.categories = JSON.parse(data);
-                } catch(e) {
-                    console.error("Dados corrompidos, resetando.", e);
-                    localStorage.removeItem('altm_data_v3_fixed');
-                }
-                
-                if (!State.categories || State.categories.length === 0) {
-                    State.categories = [];
-                    State.addCategory("Geral");
-                }
-                // Ensure valid ID selection
-                if (!State.currentCategoryId || !State.categories.find(c => c.id === State.currentCategoryId)) {
-                     State.currentCategoryId = State.categories[0].id;
-                }
-            },
-            addCategory: (name) => {
-                const id = Date.now().toString();
-                State.categories.push({
-                    id: id,
-                    name: name,
-                    players: [],
-                    groups: [], 
-                    matches: [], 
-                    bracket: null, 
-                    status: 'registration' 
-                });
-                State.save();
-                return id;
+        // Helpers
+        getCurrentCategory: () => State.categories.find(c => c.id === State.currentCategoryId),
+        save: () => {
+            try {
+                localStorage.setItem('altm_data_v3_fixed', JSON.stringify(State.categories));
+            } catch(e) { console.error("Erro ao salvar", e); }
+        },
+        load: () => {
+            try {
+                const data = localStorage.getItem('altm_data_v3_fixed');
+                if (data) State.categories = JSON.parse(data);
+            } catch(e) {
+                console.error("Dados corrompidos, resetando.", e);
+                localStorage.removeItem('altm_data_v3_fixed');
             }
-        };
 
-        // --- INIT ---
-        window.addEventListener('DOMContentLoaded', () => {
-            State.load();
-            renderCategorySelect();
-            updateDashboard();
-            switchTab('dashboard');
+            if (!State.categories || State.categories.length === 0) {
+                State.categories = [];
+                State.addCategory("Geral");
+            }
+            // Ensure valid ID selection
+            if (!State.currentCategoryId || !State.categories.find(c => c.id === State.currentCategoryId)) {
+                State.currentCategoryId = State.categories[0].id;
+            }
+        },
+        addCategory: (name) => {
+            const id = Date.now().toString();
+            State.categories.push({
+                id: id,
+                name: name,
+                players: [],
+                groups: [],
+                matches: [],
+                bracket: null,
+                status: 'registration'
+            });
+            State.save();
+            return id;
+        }
+    };
+
+    // --- CONFIG (sem mexer no layout) ---
+    // Melhor de 5 (quem fizer 3 sets vence). Se quiser BO7, troque para 4.
+    const MATCH_WIN_SETS = 3;
+
+    // --- INIT ---
+    window.addEventListener('DOMContentLoaded', () => {
+        State.load();
+        renderCategorySelect();
+        updateDashboard();
+        switchTab('dashboard');
+    });
+
+    // --- UI NAVIGATION ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.nav-item').forEach(el => {
+            el.classList.remove('border-orange-500', 'text-orange-500', 'bg-slate-800');
+            el.classList.add('border-transparent', 'text-white');
         });
 
-        // --- UI NAVIGATION ---
-        function switchTab(tabId) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('border-orange-500', 'text-orange-500', 'bg-slate-800');
-                el.classList.add('border-transparent', 'text-white');
-            });
+        const view = document.getElementById(`view-${tabId}`);
+        if(view) view.classList.remove('hidden');
 
-            const view = document.getElementById(`view-${tabId}`);
-            if(view) view.classList.remove('hidden');
-            
-            const navBtn = document.getElementById(`nav-${tabId}`);
-            if(navBtn) {
-                navBtn.classList.remove('border-transparent', 'text-white');
-                navBtn.classList.add('border-orange-500', 'text-orange-500', 'bg-slate-800');
-            }
+        const navBtn = document.getElementById(`nav-${tabId}`);
+        if(navBtn) {
+            navBtn.classList.remove('border-transparent', 'text-white');
+            navBtn.classList.add('border-orange-500', 'text-orange-500', 'bg-slate-800');
+        }
 
-            const titles = {
-                'dashboard': ['Dashboard', 'Visão Geral'],
-                'registration': ['Inscrições', 'Gerenciamento de Atletas'],
-                'groups': ['Fase de Grupos', 'Jogos Classificatórios'],
-                'bracket': ['Fase Eliminatória', 'Rumo ao Título']
+        const titles = {
+            'dashboard': ['Dashboard', 'Visão Geral'],
+            'registration': ['Inscrições', 'Gerenciamento de Atletas'],
+            'groups': ['Fase de Grupos', 'Jogos Classificatórios'],
+            'bracket': ['Fase Eliminatória', 'Rumo ao Título']
+        };
+        if(titles[tabId]) {
+            document.getElementById('headerTitle').innerText = titles[tabId][0];
+            document.getElementById('headerSubtitle').innerText = titles[tabId][1];
+        }
+
+        if(tabId === 'dashboard') updateDashboard();
+        if(tabId === 'registration') renderPlayersList();
+        if(tabId === 'groups') renderGroups();
+        if(tabId === 'bracket') renderBracket();
+    }
+
+    // --- CATEGORY LOGIC ---
+    function renderCategorySelect() {
+        const select = document.getElementById('categorySelect');
+        select.innerHTML = State.categories
+            .map(c => `<option value="${c.id}" ${c.id === State.currentCategoryId ? 'selected' : ''}>${c.name}</option>`)
+            .join('');
+    }
+
+    function changeCategory() {
+        const select = document.getElementById('categorySelect');
+        State.currentCategoryId = select.value;
+        switchTab('dashboard');
+    }
+
+    function addNewCategory() {
+        const name = prompt("Nome da Nova Categoria (Ex: Absoluto B):");
+        if (name) {
+            const id = State.addCategory(name);
+            State.currentCategoryId = id;
+            renderCategorySelect();
+            switchTab('registration');
+            showToast(`Categoria ${name} criada!`, 'success');
+        }
+    }
+
+    function resetSystem() {
+        if(confirm("ATENÇÃO: Isso apagará TODOS os dados. Continuar?")) {
+            localStorage.removeItem('altm_data_v3_fixed');
+            location.reload();
+        }
+    }
+
+    // --- REGISTRATION LOGIC ---
+    function addPlayer() {
+        const input = document.getElementById('newPlayerName');
+        const name = input.value.trim();
+        if (!name) return;
+
+        const cat = State.getCurrentCategory();
+        if (cat.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+            showToast("Atleta já inscrito!", "error");
+            return;
+        }
+
+        cat.players.push({
+            id: Date.now() + Math.random().toString(),
+            name: name,
+            wins: 0,
+            setsWon: 0,
+            setDiff: 0,
+            points: 0
+        });
+        State.save();
+        input.value = '';
+        renderPlayersList();
+        showToast("Atleta adicionado!", "success");
+        updateDashboard();
+    }
+
+    function removePlayer(id) {
+        const cat = State.getCurrentCategory();
+        if (cat.status !== 'registration') {
+            showToast("Torneio em andamento. Impossível remover.", "error");
+            return;
+        }
+        cat.players = cat.players.filter(p => p.id !== id);
+        State.save();
+        renderPlayersList();
+    }
+
+    function renderPlayersList() {
+        const cat = State.getCurrentCategory();
+        if(!cat) return;
+        const list = document.getElementById('playersList');
+        document.getElementById('playerCountBadge').innerText = cat.players.length;
+
+        if (cat.players.length === 0) {
+            list.innerHTML = '<li class="p-4 text-center text-gray-400 italic">Nenhum atleta inscrito.</li>';
+            return;
+        }
+
+        list.innerHTML = cat.players.map(p => `
+            <li class="px-6 py-3 flex justify-between items-center hover:bg-gray-50 transition">
+                <span class="font-medium text-gray-800">${p.name}</span>
+                <button onclick="removePlayer('${p.id}')" class="text-red-400 hover:text-red-600">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </li>
+        `).join('');
+    }
+
+    // ============================================================
+    // REGRAS CBTM/ITTF (sem mudar layout)
+    // - Empate de 2: Confronto direto primeiro
+    // - Empate de 3+: Mini-tabela apenas entre empatados
+    // - Persistindo: saldo sets/sets ganhos e fallback estável por nome
+    // ============================================================
+
+    function _buildStatsForGroup(group, matches) {
+        const stats = {};
+        group.players.forEach(p => {
+            stats[p.id] = {
+                id: p.id,
+                wins: 0,
+                setDiff: 0,
+                setsWon: 0,
+                h2h: {} // h2h[opponentId] = winnerId
             };
-            if(titles[tabId]) {
-                document.getElementById('headerTitle').innerText = titles[tabId][0];
-                document.getElementById('headerSubtitle').innerText = titles[tabId][1];
-            }
+        });
 
-            if(tabId === 'dashboard') updateDashboard();
-            if(tabId === 'registration') renderPlayersList();
-            if(tabId === 'groups') renderGroups();
-            if(tabId === 'bracket') renderBracket();
+        matches.forEach(m => {
+            if (!m || m.winnerId === null) return;
+            const a = stats[m.p1Id];
+            const b = stats[m.p2Id];
+            if (!a || !b) return;
+
+            const s1 = (m.scoreP1 || 0);
+            const s2 = (m.scoreP2 || 0);
+
+            a.setsWon += s1;
+            b.setsWon += s2;
+
+            a.setDiff += (s1 - s2);
+            b.setDiff += (s2 - s1);
+
+            if (m.winnerId === m.p1Id) a.wins++;
+            else b.wins++;
+
+            a.h2h[m.p2Id] = m.winnerId;
+            b.h2h[m.p1Id] = m.winnerId;
+        });
+
+        return stats;
+    }
+
+    function _buildMiniStats(tiedIdsSet, matches) {
+        const mini = {};
+        tiedIdsSet.forEach(id => {
+            mini[id] = { wins: 0, setDiff: 0, setsWon: 0, h2h: {} };
+        });
+
+        matches.forEach(m => {
+            if (!m || m.winnerId === null) return;
+            if (!mini[m.p1Id] || !mini[m.p2Id]) return;
+
+            const a = mini[m.p1Id];
+            const b = mini[m.p2Id];
+            const s1 = (m.scoreP1 || 0);
+            const s2 = (m.scoreP2 || 0);
+
+            a.setsWon += s1;
+            b.setsWon += s2;
+
+            a.setDiff += (s1 - s2);
+            b.setDiff += (s2 - s1);
+
+            if (m.winnerId === m.p1Id) a.wins++;
+            else b.wins++;
+
+            a.h2h[m.p2Id] = m.winnerId;
+            b.h2h[m.p1Id] = m.winnerId;
+        });
+
+        return mini;
+    }
+
+    function _cmpTwoByHeadToHead(a, b, stats) {
+        const h = stats[a.id]?.h2h?.[b.id];
+        if (h) {
+            if (h === a.id) return -1;
+            if (h === b.id) return 1;
         }
+        return 0;
+    }
 
-        // --- CATEGORY LOGIC ---
-        function renderCategorySelect() {
-            const select = document.getElementById('categorySelect');
-            select.innerHTML = State.categories.map(c => `<option value="${c.id}" ${c.id === State.currentCategoryId ? 'selected' : ''}>${c.name}</option>`).join('');
-        }
+    function _stableFallback(a, b) {
+        // fallback estável (não muda “do nada”): nome
+        return (a.name || '').localeCompare((b.name || ''), 'pt-BR', { sensitivity: 'base' });
+    }
 
-        function changeCategory() {
-            const select = document.getElementById('categorySelect');
-            State.currentCategoryId = select.value;
-            switchTab('dashboard'); 
-        }
+    function getSortedPlayersForGroup(cat, group) {
+        const groupMatches = cat.matches.filter(m => m.groupId === group.id && m.winnerId !== null);
+        const stats = _buildStatsForGroup(group, groupMatches);
 
-        function addNewCategory() {
-            const name = prompt("Nome da Nova Categoria (Ex: Absoluto B):");
-            if (name) {
-                const id = State.addCategory(name);
-                State.currentCategoryId = id;
-                renderCategorySelect();
-                switchTab('registration');
-                showToast(`Categoria ${name} criada!`, 'success');
-            }
-        }
+        // aplica stats no próprio objeto (pra UI continuar igual)
+        group.players.forEach(p => {
+            const st = stats[p.id];
+            p.wins = st ? st.wins : 0;
+            p.setDiff = st ? st.setDiff : 0;
+            p.setsWon = st ? st.setsWon : 0;
+        });
 
-        function resetSystem() {
-            if(confirm("ATENÇÃO: Isso apagará TODOS os dados. Continuar?")) {
-                localStorage.removeItem('altm_data_v3_fixed');
-                location.reload();
-            }
-        }
+        // agrupa por vitórias (desc)
+        const byWins = {};
+        group.players.forEach(p => {
+            const w = (stats[p.id]?.wins ?? 0);
+            if (!byWins[w]) byWins[w] = [];
+            byWins[w].push(p);
+        });
 
-        // --- REGISTRATION LOGIC ---
-        function addPlayer() {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if (!name) return;
+        const winsKeys = Object.keys(byWins).map(Number).sort((a,b) => b-a);
+        const finalOrder = [];
 
-            const cat = State.getCurrentCategory();
-            if (cat.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-                showToast("Atleta já inscrito!", "error");
+        winsKeys.forEach(w => {
+            const tied = byWins[w];
+            if (tied.length === 1) {
+                finalOrder.push(tied[0]);
                 return;
             }
 
-            cat.players.push({
-                id: Date.now() + Math.random().toString(),
-                name: name,
-                wins: 0, setsWon: 0, setDiff: 0, points: 0 
-            });
-            State.save();
-            input.value = '';
-            renderPlayersList();
-            showToast("Atleta adicionado!", "success");
-            updateDashboard();
-        }
-
-        function removePlayer(id) {
-            const cat = State.getCurrentCategory();
-            if (cat.status !== 'registration') {
-                showToast("Torneio em andamento. Impossível remover.", "error");
-                return;
-            }
-            cat.players = cat.players.filter(p => p.id !== id);
-            State.save();
-            renderPlayersList();
-        }
-
-        function renderPlayersList() {
-            const cat = State.getCurrentCategory();
-            if(!cat) return;
-            const list = document.getElementById('playersList');
-            document.getElementById('playerCountBadge').innerText = cat.players.length;
-
-            if (cat.players.length === 0) {
-                list.innerHTML = '<li class="p-4 text-center text-gray-400 italic">Nenhum atleta inscrito.</li>';
+            if (tied.length === 2) {
+                const a = tied[0], b = tied[1];
+                const h2h = _cmpTwoByHeadToHead(a,b,stats);
+                if (h2h !== 0) {
+                    finalOrder.push(h2h < 0 ? a : b, h2h < 0 ? b : a);
+                    return;
+                }
+                tied.sort((x,y) =>
+                    (stats[y.id].setDiff - stats[x.id].setDiff) ||
+                    (stats[y.id].setsWon - stats[x.id].setsWon) ||
+                    _stableFallback(x,y)
+                );
+                finalOrder.push(...tied);
                 return;
             }
 
-            list.innerHTML = cat.players.map(p => `
-                <li class="px-6 py-3 flex justify-between items-center hover:bg-gray-50 transition">
-                    <span class="font-medium text-gray-800">${p.name}</span>
-                    <button onclick="removePlayer('${p.id}')" class="text-red-400 hover:text-red-600">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </li>
-            `).join('');
+            // 3+ empatados: mini-tabela só entre eles
+            const tiedIds = tied.map(p => p.id);
+            const miniStats = _buildMiniStats(new Set(tiedIds), groupMatches);
+
+            tied.sort((x, y) => {
+                const mx = miniStats[x.id], my = miniStats[y.id];
+
+                // 1) vitórias NA mini-tabela
+                if (my.wins !== mx.wins) return my.wins - mx.wins;
+
+                // 2) saldo de sets NA mini-tabela
+                if (my.setDiff !== mx.setDiff) return my.setDiff - mx.setDiff;
+
+                // 3) sets ganhos NA mini-tabela
+                if (my.setsWon !== mx.setsWon) return my.setsWon - mx.setsWon;
+
+                // Se dentro do empate restar “sub-empate de 2”, tenta confronto direto da mini
+                const h2h = _cmpTwoByHeadToHead(x, y, miniStats);
+                if (h2h !== 0) return h2h;
+
+                // fallback: stats gerais do grupo
+                if (stats[y.id].setDiff !== stats[x.id].setDiff) return stats[y.id].setDiff - stats[x.id].setDiff;
+                if (stats[y.id].setsWon !== stats[x.id].setsWon) return stats[y.id].setsWon - stats[x.id].setsWon;
+
+                return _stableFallback(x,y);
+            });
+
+            finalOrder.push(...tied);
+        });
+
+        return finalOrder;
+    }
+
+    // --- GROUP GENERATION & LOGIC ---
+    function generateGroups() {
+        const cat = State.getCurrentCategory();
+        if (cat.players.length < 3) {
+            showToast("Mínimo de 3 atletas necessários.", "error");
+            return;
+        }
+        if (cat.groups.length > 0 && !confirm("Os grupos já existem. Refazer o sorteio apagará os resultados atuais. Continuar?")) {
+            return;
         }
 
-        // --- GROUP GENERATION & LOGIC ---
-        function generateGroups() {
-            const cat = State.getCurrentCategory();
-            if (cat.players.length < 3) {
-                showToast("Mínimo de 3 atletas necessários.", "error");
-                return;
-            }
-            if (cat.groups.length > 0 && !confirm("Os grupos já existem. Refazer o sorteio apagará os resultados atuais. Continuar?")) {
-                return;
-            }
+        // Logic: Groups of 3 or 4
+        const playerCount = cat.players.length;
+        let numGroups = Math.ceil(playerCount / 4);
+        while (playerCount / numGroups < 3 && numGroups > 1) {
+            numGroups--;
+        }
+        if (numGroups < 1) numGroups = 1;
 
-            // Logic: Groups of 3 or 4
-            const playerCount = cat.players.length;
-            let numGroups = Math.ceil(playerCount / 4);
-            while (playerCount / numGroups < 3 && numGroups > 1) {
-                numGroups--;
-            }
-            if (numGroups < 1) numGroups = 1;
+        let pool = [...cat.players].sort(() => Math.random() - 0.5);
 
-            let pool = [...cat.players].sort(() => Math.random() - 0.5);
-            
-            cat.groups = Array.from({length: numGroups}, (_, i) => ({
-                id: i + 1,
-                name: `Grupo ${i + 1}`,
-                players: []
-            }));
+        cat.groups = Array.from({length: numGroups}, (_, i) => ({
+            id: i + 1,
+            name: `Grupo ${i + 1}`,
+            players: []
+        }));
 
-            // Snake Draft
-            for (let i = 0; i < pool.length; i++) {
-                const wave = Math.floor(i / numGroups); 
-                let groupIndex;
-                if (wave % 2 === 0) {
-                    groupIndex = i % numGroups;
-                } else {
-                    groupIndex = (numGroups - 1) - (i % numGroups);
-                }
-                
-                pool[i].wins = 0;
-                pool[i].setsWon = 0;
-                pool[i].setDiff = 0;
-                
-                if(cat.groups[groupIndex]) {
-                    cat.groups[groupIndex].players.push(pool[i]);
-                }
+        // Snake Draft
+        for (let i = 0; i < pool.length; i++) {
+            const wave = Math.floor(i / numGroups);
+            let groupIndex;
+            if (wave % 2 === 0) {
+                groupIndex = i % numGroups;
+            } else {
+                groupIndex = (numGroups - 1) - (i % numGroups);
             }
 
-            // Generate Matches
-            cat.matches = [];
-            cat.groups.forEach(group => {
-                for (let i = 0; i < group.players.length; i++) {
-                    for (let j = i + 1; j < group.players.length; j++) {
-                        cat.matches.push({
-                            id: `g-${group.id}-${i}-${j}`,
-                            groupId: group.id,
-                            p1Id: group.players[i].id,
-                            p2Id: group.players[j].id,
-                            scoreP1: null,
-                            scoreP2: null,
-                            winnerId: null
-                        });
-                    }
-                }
-            });
+            pool[i].wins = 0;
+            pool[i].setsWon = 0;
+            pool[i].setDiff = 0;
 
-            cat.status = 'groups';
-            cat.bracket = null; 
-            State.save();
-            renderGroups();
-            showToast("Grupos sorteados!", "success");
-            updateDashboard();
+            if(cat.groups[groupIndex]) {
+                cat.groups[groupIndex].players.push(pool[i]);
+            }
         }
 
-        function renderGroups() {
-            const cat = State.getCurrentCategory();
-            const container = document.getElementById('groupsContainer');
-            
-            if (!cat.groups || cat.groups.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-layer-group text-6xl mb-4 opacity-20"></i><p>Nenhum grupo formado.</p></div>`;
-                return;
-            }
-
-            calculateStandings(cat);
-
-            container.innerHTML = cat.groups.map(group => {
-                const groupMatches = cat.matches.filter(m => m.groupId === group.id);
-                const sortedPlayers = [...group.players].sort((a,b) => b.wins - a.wins || b.setDiff - a.setDiff || b.setsWon - a.setsWon);
-
-                return `
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-                    <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
-                        <h3 class="font-bold">${group.name}</h3>
-                        <span class="text-xs bg-slate-600 px-2 py-1 rounded">${group.players.length} Atletas</span>
-                    </div>
-                    
-                    <div class="p-2">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
-                                <tr>
-                                    <th class="px-2 py-1">Pos</th>
-                                    <th class="px-2 py-1">Atleta</th>
-                                    <th class="px-2 py-1 text-center">V</th>
-                                    <th class="px-2 py-1 text-center">SD</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${sortedPlayers.map((p, idx) => `
-                                    <tr class="border-b last:border-0 ${idx < 2 ? 'bg-green-50' : ''}">
-                                        <td class="px-2 py-1 font-bold ${idx < 2 ? 'text-green-700' : 'text-gray-500'}">${idx+1}º</td>
-                                        <td class="px-2 py-1 truncate max-w-[120px]" title="${p.name}">${p.name}</td>
-                                        <td class="px-2 py-1 text-center font-semibold">${p.wins}</td>
-                                        <td class="px-2 py-1 text-center text-gray-500">${p.setDiff > 0 ? '+'+p.setDiff : p.setDiff}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="bg-gray-50 p-2 flex-1 overflow-y-auto max-h-[300px]">
-                        <div class="space-y-2">
-                            ${groupMatches.map(m => {
-                                const p1 = group.players.find(p => p.id === m.p1Id);
-                                const p2 = group.players.find(p => p.id === m.p2Id);
-                                const isPlayed = m.winnerId !== null;
-                                return `
-                                <div onclick="openScoreModal('group', '${m.id}')" class="cursor-pointer bg-white p-2 rounded border hover:shadow-md transition flex justify-between items-center ${isPlayed ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-300'}">
-                                    <div class="text-right flex-1 truncate text-sm font-medium ${m.winnerId === p1.id ? 'text-green-600 font-bold' : 'text-gray-700'}">${p1.name}</div>
-                                    <div class="px-2 flex gap-1 items-center">
-                                        <span class="bg-gray-100 px-2 py-1 rounded font-bold text-gray-800">${m.scoreP1 !== null ? m.scoreP1 : '-'}</span>
-                                        <span class="text-xs text-gray-400">x</span>
-                                        <span class="bg-gray-100 px-2 py-1 rounded font-bold text-gray-800">${m.scoreP2 !== null ? m.scoreP2 : '-'}</span>
-                                    </div>
-                                    <div class="text-left flex-1 truncate text-sm font-medium ${m.winnerId === p2.id ? 'text-green-600 font-bold' : 'text-gray-700'}">${p2.name}</div>
-                                </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-
-            const allPlayed = cat.matches.length > 0 && cat.matches.every(m => m.winnerId !== null);
-            const btn = document.getElementById('finishGroupsBtn');
-            if(btn) btn.classList.toggle('hidden', !allPlayed);
-        }
-
-        function calculateStandings(cat) {
-            cat.groups.forEach(g => {
-                g.players.forEach(p => { p.wins = 0; p.setDiff = 0; p.setsWon = 0; });
-            });
-
-            cat.matches.forEach(m => {
-                if (m.winnerId) {
-                    let p1, p2;
-                    cat.groups.some(g => {
-                        const f1 = g.players.find(p => p.id === m.p1Id);
-                        const f2 = g.players.find(p => p.id === m.p2Id);
-                        if(f1) p1 = f1;
-                        if(f2) p2 = f2;
-                        return f1 && f2;
-                    });
-
-                    if(p1 && p2) {
-                        p1.setsWon += (m.scoreP1 || 0);
-                        p2.setsWon += (m.scoreP2 || 0);
-                        p1.setDiff += ((m.scoreP1||0) - (m.scoreP2||0));
-                        p2.setDiff += ((m.scoreP2||0) - (m.scoreP1||0));
-
-                        if(m.winnerId === p1.id) p1.wins++;
-                        else p2.wins++;
-                    }
-                }
-            });
-        }
-
-        // --- BRACKET LOGIC ---
-        function finalizeGroups() {
-            if(!confirm("Encerrar fase de grupos e gerar chave?")) return;
-            
-            const cat = State.getCurrentCategory();
-            calculateStandings(cat);
-
-            let qualifiers = [];
-            cat.groups.forEach(g => {
-                const sorted = [...g.players].sort((a,b) => b.wins - a.wins || b.setDiff - a.setDiff || b.setsWon - a.setsWon);
-                if(sorted[0]) qualifiers.push({ ...sorted[0], groupRank: 1, groupId: g.id });
-                if(sorted[1]) qualifiers.push({ ...sorted[1], groupRank: 2, groupId: g.id });
-            });
-
-            if(qualifiers.length < 2) {
-                showToast("Poucos classificados.", "error");
-                return;
-            }
-
-            let size = 2;
-            while(size < qualifiers.length) size *= 2;
-
-            const firstPlaces = qualifiers.filter(q => q.groupRank === 1);
-            const secondPlaces = qualifiers.filter(q => q.groupRank === 2);
-            let bracketSlots = new Array(size).fill(null);
-
-            function getSeedOrder(n) {
-                if(n===2) return [0,1];
-                if(n===4) return [0,3,1,2];
-                if(n===8) return [0,7,3,4,1,6,2,5];
-                if(n===16) return [0,15,7,8,3,12,4,11,1,14,6,9,2,13,5,10];
-                if(n===32) return [0,31,15,16,7,24,8,23,3,28,12,19,4,27,11,20,1,30,14,17,6,25,9,22,2,29,13,18,5,26,10,21];
-                return [];
-            }
-            const seedOrder = getSeedOrder(size);
-            
-            // Distribute 1st places
-            firstPlaces.forEach((p, i) => {
-                if(i < seedOrder.length) bracketSlots[seedOrder[i]] = p;
-            });
-
-            // Distribute 2nd places
-            secondPlaces.forEach(p => {
-                let placed = false;
-                for(let i=0; i<size; i++) {
-                    const targetIndex = seedOrder[size - 1 - i]; 
-                    if(bracketSlots[targetIndex] === null) {
-                        bracketSlots[targetIndex] = p;
-                        placed = true;
-                        break;
-                    }
-                }
-                if(!placed) {
-                    const idx = bracketSlots.indexOf(null);
-                    if(idx > -1) bracketSlots[idx] = p;
-                }
-            });
-
-            const rounds = [];
-            let matchIdCounter = 1;
-            let totalRounds = Math.log2(size);
-            
-            // Round 1
-            let currentRoundMatches = [];
-            for(let i=0; i<size; i+=2) {
-                const p1 = bracketSlots[i];
-                const p2 = bracketSlots[i+1];
-                
-                const match = {
-                    id: `b-r1-${matchIdCounter++}`,
-                    round: 1,
-                    p1: p1 ? {name: p1.name, id: p1.id} : {name: 'BYE', id: 'bye'},
-                    p2: p2 ? {name: p2.name, id: p2.id} : {name: 'BYE', id: 'bye'},
-                    scoreP1: null,
-                    scoreP2: null,
-                    winner: null,
-                    nextMatchId: null
-                };
-
-                // Auto resolve BYE
-                if(match.p1.id === 'bye' && match.p2.id !== 'bye') {
-                    match.winner = match.p2; 
-                    match.scoreP1 = 0; match.scoreP2 = 3;
-                } else if(match.p2.id === 'bye' && match.p1.id !== 'bye') {
-                    match.winner = match.p1;
-                    match.scoreP1 = 3; match.scoreP2 = 0;
-                } else if(match.p1.id === 'bye' && match.p2.id === 'bye') {
-                    match.winner = {name: 'BYE', id:'bye'};
-                }
-
-                currentRoundMatches.push(match);
-            }
-            rounds.push(currentRoundMatches);
-
-            // Next Rounds
-            for(let r=2; r<=totalRounds; r++) {
-                let prevRound = rounds[rounds.length-1];
-                let nextRound = [];
-                
-                for(let i=0; i<prevRound.length; i+=2) {
-                    const m1 = prevRound[i];
-                    const m2 = prevRound[i+1];
-                    
-                    if(!m1 || !m2) break; // Safety check
-
-                    const newMatch = {
-                        id: `b-r${r}-${matchIdCounter++}`,
-                        round: r,
-                        p1: m1.winner ? m1.winner : {name: `Venc. J${m1.id.split('-').pop()}`, id: null},
-                        p2: m2.winner ? m2.winner : {name: `Venc. J${m2.id.split('-').pop()}`, id: null},
+        // Generate Matches
+        cat.matches = [];
+        cat.groups.forEach(group => {
+            for (let i = 0; i < group.players.length; i++) {
+                for (let j = i + 1; j < group.players.length; j++) {
+                    cat.matches.push({
+                        id: `g-${group.id}-${i}-${j}`,
+                        groupId: group.id,
+                        p1Id: group.players[i].id,
+                        p2Id: group.players[j].id,
                         scoreP1: null,
                         scoreP2: null,
-                        winner: null,
-                        sources: [m1.id, m2.id] 
-                    };
-
-                    m1.nextMatchId = newMatch.id;
-                    m2.nextMatchId = newMatch.id;
-                    nextRound.push(newMatch);
+                        winnerId: null
+                    });
                 }
-                rounds.push(nextRound);
             }
+        });
 
-            cat.bracket = { rounds: rounds };
-            cat.status = 'bracket';
-            State.save();
-            switchTab('bracket');
-            showToast("Chave Eliminatória Gerada!", "success");
+        cat.status = 'groups';
+        cat.bracket = null;
+        State.save();
+        renderGroups();
+        showToast("Grupos sorteados!", "success");
+        updateDashboard();
+    }
+
+    function renderGroups() {
+        const cat = State.getCurrentCategory();
+        const container = document.getElementById('groupsContainer');
+
+        if (!cat.groups || cat.groups.length === 0) {
+            container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-layer-group text-6xl mb-4 opacity-20"></i><p>Nenhum grupo formado.</p></div>`;
+            return;
         }
 
-        function renderBracket() {
-            const cat = State.getCurrentCategory();
-            const canvas = document.getElementById('bracketCanvas');
-            
-            if(!cat || !cat.bracket) return;
+        container.innerHTML = cat.groups.map(group => {
+            const groupMatches = cat.matches.filter(m => m.groupId === group.id);
+            const sortedPlayers = getSortedPlayersForGroup(cat, group);
 
-            canvas.innerHTML = cat.bracket.rounds.map((round, rIdx) => {
-                const roundName = rIdx === cat.bracket.rounds.length - 1 ? "FINAL" : 
-                                  rIdx === cat.bracket.rounds.length - 2 ? "SEMIFINAL" : 
-                                  `Rodada ${rIdx + 1}`;
-                
-                return `
-                <div class="round-column">
-                    <h3 class="text-center font-bold text-orange-600 mb-4 uppercase tracking-wider text-sm">${roundName}</h3>
-                    <div class="flex flex-col justify-around flex-1">
-                        ${round.map(m => {
-                            const isBye = m.p1.id === 'bye' || m.p2.id === 'bye';
-                            const p1Class = m.winner && m.winner.id === m.p1.id ? 'font-bold text-green-600' : '';
-                            const p2Class = m.winner && m.winner.id === m.p2.id ? 'font-bold text-green-600' : '';
-                            const cardClass = m.winner ? 'completed' : 'pending';
-                            
-                            const clickAction = (!m.winner && !isBye && m.p1.id && m.p2.id) ? `onclick="openScoreModal('bracket', '${m.id}')"` : '';
+            return `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
+                    <h3 class="font-bold">${group.name}</h3>
+                    <span class="text-xs bg-slate-600 px-2 py-1 rounded">${group.players.length} Atletas</span>
+                </div>
 
+                <div class="p-2">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-2 py-1">Pos</th>
+                                <th class="px-2 py-1">Atleta</th>
+                                <th class="px-2 py-1 text-center">V</th>
+                                <th class="px-2 py-1 text-center">SD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedPlayers.map((p, idx) => `
+                                <tr class="border-b last:border-0 ${idx < 2 ? 'bg-green-50' : ''}">
+                                    <td class="px-2 py-1 font-bold ${idx < 2 ? 'text-green-700' : 'text-gray-500'}">${idx+1}º</td>
+                                    <td class="px-2 py-1 truncate max-w-[120px]" title="${p.name}">${p.name}</td>
+                                    <td class="px-2 py-1 text-center font-semibold">${p.wins}</td>
+                                    <td class="px-2 py-1 text-center text-gray-500">${p.setDiff > 0 ? '+'+p.setDiff : p.setDiff}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-gray-50 p-2 flex-1 overflow-y-auto max-h-[300px]">
+                    <div class="space-y-2">
+                        ${groupMatches.map(m => {
+                            const p1 = group.players.find(p => p.id === m.p1Id);
+                            const p2 = group.players.find(p => p.id === m.p2Id);
+                            const isPlayed = m.winnerId !== null;
                             return `
-                            <div class="match-card p-3 ${cardClass} text-sm" ${clickAction}>
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="truncate w-32 ${p1Class}">${m.p1.name}</span>
-                                    <span class="bg-gray-100 px-2 rounded font-mono text-xs">${m.scoreP1 !== null ? m.scoreP1 : ''}</span>
+                            <div onclick="openScoreModal('group', '${m.id}')" class="cursor-pointer bg-white p-2 rounded border hover:shadow-md transition flex justify-between items-center ${isPlayed ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-300'}">
+                                <div class="text-right flex-1 truncate text-sm font-medium ${m.winnerId === p1.id ? 'text-green-600 font-bold' : 'text-gray-700'}">${p1.name}</div>
+                                <div class="px-2 flex gap-1 items-center">
+                                    <span class="bg-gray-100 px-2 py-1 rounded font-bold text-gray-800">${m.scoreP1 !== null ? m.scoreP1 : '-'}</span>
+                                    <span class="text-xs text-gray-400">x</span>
+                                    <span class="bg-gray-100 px-2 py-1 rounded font-bold text-gray-800">${m.scoreP2 !== null ? m.scoreP2 : '-'}</span>
                                 </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="truncate w-32 ${p2Class}">${m.p2.name}</span>
-                                    <span class="bg-gray-100 px-2 rounded font-mono text-xs">${m.scoreP2 !== null ? m.scoreP2 : ''}</span>
-                                </div>
-                                <div class="text-[10px] text-gray-400 mt-1 text-center">J${m.id.split('-').pop()}</div>
-                                ${rIdx < cat.bracket.rounds.length - 1 ? '<div class="connector"></div>' : ''}
+                                <div class="text-left flex-1 truncate text-sm font-medium ${m.winnerId === p2.id ? 'text-green-600 font-bold' : 'text-gray-700'}">${p2.name}</div>
                             </div>
                             `;
                         }).join('')}
                     </div>
                 </div>
-                `;
-            }).join('');
+            </div>
+            `;
+        }).join('');
+
+        const allPlayed = cat.matches.length > 0 && cat.matches.every(m => m.winnerId !== null);
+        const btn = document.getElementById('finishGroupsBtn');
+        if(btn) btn.classList.toggle('hidden', !allPlayed);
+    }
+
+    // --- BRACKET LOGIC ---
+    function _nextPowerOf2(n) {
+        let size = 2;
+        while(size < n) size *= 2;
+        return size;
+    }
+
+    // gera layout padrão de seeds nas posições do array (slots)
+    // exemplo n=8 => [1,8,4,5,2,7,3,6]
+    function _seedLayout(size) {
+        let arr = [1,2];
+        while(arr.length < size) {
+            const n = arr.length * 2;
+            const next = [];
+            for (const s of arr) {
+                next.push(s);
+                next.push(n + 1 - s);
+            }
+            arr = next;
+        }
+        return arr;
+    }
+
+    function finalizeGroups() {
+        if(!confirm("Encerrar fase de grupos e gerar chave?")) return;
+
+        const cat = State.getCurrentCategory();
+
+        let qualifiers = [];
+        cat.groups.forEach(g => {
+            const sorted = getSortedPlayersForGroup(cat, g);
+            if(sorted[0]) qualifiers.push({ ...sorted[0], groupRank: 1, groupId: g.id });
+            if(sorted[1]) qualifiers.push({ ...sorted[1], groupRank: 2, groupId: g.id });
+        });
+
+        if(qualifiers.length < 2) {
+            showToast("Poucos classificados.", "error");
+            return;
         }
 
-        // --- SCORE MODAL LOGIC ---
-        let currentModalMatch = null;
-
-        function openScoreModal(type, matchId) {
-            const cat = State.getCurrentCategory();
-            let match;
-            if(type === 'group') match = cat.matches.find(m => m.id === matchId);
-            else {
-                cat.bracket.rounds.forEach(r => {
-                    const found = r.find(m => m.id === matchId);
-                    if(found) match = found;
-                });
-            }
-
-            if(!match) return;
-
-            let p1Name = "...", p2Name = "...";
-            if(type === 'group') {
-                const group = cat.groups.find(g => g.id === match.groupId);
-                p1Name = group.players.find(p => p.id === match.p1Id).name;
-                p2Name = group.players.find(p => p.id === match.p2Id).name;
-            } else {
-                p1Name = match.p1.name;
-                p2Name = match.p2.name;
-            }
-
-            currentModalMatch = match;
-            document.getElementById('modalMatchId').value = matchId;
-            document.getElementById('modalMatchType').value = type;
-            document.getElementById('modalP1Name').innerText = p1Name;
-            document.getElementById('modalP2Name').innerText = p2Name;
-            document.getElementById('modalScoreP1').value = match.scoreP1 !== null ? match.scoreP1 : '';
-            document.getElementById('modalScoreP2').value = match.scoreP2 !== null ? match.scoreP2 : '';
-            document.getElementById('modalTitle').innerText = type === 'group' ? 'Jogo de Grupo' : 'Jogo Eliminatório';
-
-            document.getElementById('scoreModal').classList.remove('hidden');
+        // rankeia seeds (sem ponto por set, então usa V / SD / SetsWon)
+        function seedScore(p) {
+            return (p.wins * 100000) + (p.setDiff * 1000) + (p.setsWon * 10);
         }
 
-        function closeModal() {
-            document.getElementById('scoreModal').classList.add('hidden');
-            currentModalMatch = null;
+        const firstPlaces = qualifiers.filter(q => q.groupRank === 1).sort((a,b) => seedScore(b) - seedScore(a) || a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base'}));
+        const secondPlaces = qualifiers.filter(q => q.groupRank === 2).sort((a,b) => seedScore(b) - seedScore(a) || a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base'}));
+
+        const seeded = [...firstPlaces, ...secondPlaces];
+        const size = _nextPowerOf2(seeded.length);
+        const layout = _seedLayout(size);
+
+        // coloca jogadores nas posições conforme seed (BYE fica nos seeds maiores)
+        let bracketSlots = new Array(size).fill(null);
+        for (let slot = 0; slot < size; slot++) {
+            const seedNumber = layout[slot]; // 1..size
+            if (seedNumber <= seeded.length) {
+                const p = seeded[seedNumber - 1];
+                bracketSlots[slot] = p;
+            }
         }
 
-        function confirmScore() {
-            const s1 = parseInt(document.getElementById('modalScoreP1').value);
-            const s2 = parseInt(document.getElementById('modalScoreP2').value);
-            
-            if (isNaN(s1) || isNaN(s2)) {
-                showToast("Digite um placar válido.", "error");
-                return;
-            }
-            if(s1 === s2) {
-                 showToast("Empate não permitido.", "error");
-                 return;
-            }
+        const rounds = [];
+        let matchIdCounter = 1;
+        let totalRounds = Math.log2(size);
 
-            currentModalMatch.scoreP1 = s1;
-            currentModalMatch.scoreP2 = s2;
-            
-            if(document.getElementById('modalMatchType').value === 'group') {
-                currentModalMatch.winnerId = s1 > s2 ? currentModalMatch.p1Id : currentModalMatch.p2Id;
-                renderGroups();
-            } else {
-                currentModalMatch.winner = s1 > s2 ? currentModalMatch.p1 : currentModalMatch.p2;
-                
-                if(currentModalMatch.nextMatchId) {
-                    const cat = State.getCurrentCategory();
-                    let nextMatch;
-                    cat.bracket.rounds.some(r => {
-                        const f = r.find(m => m.id === currentModalMatch.nextMatchId);
-                        if(f) { nextMatch = f; return true; }
-                    });
+        // Round 1
+        let currentRoundMatches = [];
+        for(let i=0; i<size; i+=2) {
+            const p1 = bracketSlots[i];
+            const p2 = bracketSlots[i+1];
 
-                    if(nextMatch && nextMatch.sources) {
-                        if(nextMatch.sources[0] === currentModalMatch.id) {
-                            nextMatch.p1 = currentModalMatch.winner;
-                        } else {
-                            nextMatch.p2 = currentModalMatch.winner;
-                        }
-                        nextMatch.winner = null; 
-                        nextMatch.scoreP1 = null; 
-                        nextMatch.scoreP2 = null;
-                    }
-                }
-                renderBracket();
+            const match = {
+                id: `b-r1-${matchIdCounter++}`,
+                round: 1,
+                p1: p1 ? {name: p1.name, id: p1.id} : {name: 'BYE', id: 'bye'},
+                p2: p2 ? {name: p2.name, id: p2.id} : {name: 'BYE', id: 'bye'},
+                scoreP1: null,
+                scoreP2: null,
+                winner: null,
+                nextMatchId: null
+            };
+
+            // Auto resolve BYE
+            if(match.p1.id === 'bye' && match.p2.id !== 'bye') {
+                match.winner = match.p2;
+                match.scoreP1 = 0; match.scoreP2 = MATCH_WIN_SETS;
+            } else if(match.p2.id === 'bye' && match.p1.id !== 'bye') {
+                match.winner = match.p1;
+                match.scoreP1 = MATCH_WIN_SETS; match.scoreP2 = 0;
+            } else if(match.p1.id === 'bye' && match.p2.id === 'bye') {
+                match.winner = {name: 'BYE', id:'bye'};
             }
 
-            State.save();
-            updateDashboard();
-            closeModal();
-            showToast("Resultado Salvo!", "success");
+            currentRoundMatches.push(match);
+        }
+        rounds.push(currentRoundMatches);
+
+        // Next rounds
+        for(let r=2; r<=totalRounds; r++) {
+            let prevRound = rounds[rounds.length-1];
+            let nextRound = [];
+
+            for(let i=0; i<prevRound.length; i+=2) {
+                const m1 = prevRound[i];
+                const m2 = prevRound[i+1];
+                if(!m1 || !m2) break;
+
+                const newMatch = {
+                    id: `b-r${r}-${matchIdCounter++}`,
+                    round: r,
+                    p1: m1.winner ? m1.winner : {name: `Venc. J${m1.id.split('-').pop()}`, id: null},
+                    p2: m2.winner ? m2.winner : {name: `Venc. J${m2.id.split('-').pop()}`, id: null},
+                    scoreP1: null,
+                    scoreP2: null,
+                    winner: null,
+                    sources: [m1.id, m2.id]
+                };
+
+                m1.nextMatchId = newMatch.id;
+                m2.nextMatchId = newMatch.id;
+                nextRound.push(newMatch);
+            }
+
+            rounds.push(nextRound);
         }
 
-        // --- DASHBOARD UPDATE ---
-        function updateDashboard() {
-            const cat = State.getCurrentCategory();
-            if(!cat) return;
+        cat.bracket = { rounds: rounds };
+        cat.status = 'bracket';
+        State.save();
+        switchTab('bracket');
+        showToast("Chave Eliminatória Gerada!", "success");
+    }
 
-            document.getElementById('dash-total-players').innerText = cat.players.length;
-            
-            let total = 0, played = 0;
-            if(cat.matches) {
-                total += cat.matches.length;
-                played += cat.matches.filter(m => m.winnerId).length;
-            }
-            if(cat.bracket) {
-                cat.bracket.rounds.forEach(r => {
-                    total += r.length;
-                    played += r.filter(m => m.winner).length;
-                });
-            }
-            
-            document.getElementById('dash-matches-played').innerText = `${played}/${total}`;
-            
-            let statusText = "Inscrições";
-            if(cat.status === 'groups') statusText = "Fase de Grupos";
-            if(cat.status === 'bracket') statusText = "Mata-Mata";
-            document.getElementById('dash-status').innerText = statusText;
+    function renderBracket() {
+        const cat = State.getCurrentCategory();
+        const canvas = document.getElementById('bracketCanvas');
+
+        if(!cat || !cat.bracket) return;
+
+        canvas.innerHTML = cat.bracket.rounds.map((round, rIdx) => {
+            const roundName = rIdx === cat.bracket.rounds.length - 1 ? "FINAL" :
+                              rIdx === cat.bracket.rounds.length - 2 ? "SEMIFINAL" :
+                              `Rodada ${rIdx + 1}`;
+
+            return `
+            <div class="round-column">
+                <h3 class="text-center font-bold text-orange-600 mb-4 uppercase tracking-wider text-sm">${roundName}</h3>
+                <div class="flex flex-col justify-around flex-1">
+                    ${round.map(m => {
+                        const isBye = m.p1.id === 'bye' || m.p2.id === 'bye';
+                        const p1Class = m.winner && m.winner.id === m.p1.id ? 'font-bold text-green-600' : '';
+                        const p2Class = m.winner && m.winner.id === m.p2.id ? 'font-bold text-green-600' : '';
+                        const cardClass = m.winner ? 'completed' : 'pending';
+                        const clickAction = (!m.winner && !isBye && m.p1.id && m.p2.id) ? `onclick="openScoreModal('bracket', '${m.id}')"` : '';
+
+                        return `
+                        <div class="match-card p-3 ${cardClass} text-sm" ${clickAction}>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="truncate w-32 ${p1Class}">${m.p1.name}</span>
+                                <span class="bg-gray-100 px-2 rounded font-mono text-xs">${m.scoreP1 !== null ? m.scoreP1 : ''}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="truncate w-32 ${p2Class}">${m.p2.name}</span>
+                                <span class="bg-gray-100 px-2 rounded font-mono text-xs">${m.scoreP2 !== null ? m.scoreP2 : ''}</span>
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-1 text-center">J${m.id.split('-').pop()}</div>
+                            ${rIdx < cat.bracket.rounds.length - 1 ? '<div class="connector"></div>' : ''}
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+
+    // --- SCORE MODAL LOGIC ---
+    let currentModalMatch = null;
+
+    function openScoreModal(type, matchId) {
+        const cat = State.getCurrentCategory();
+        let match;
+
+        if(type === 'group') match = cat.matches.find(m => m.id === matchId);
+        else {
+            cat.bracket.rounds.forEach(r => {
+                const found = r.find(m => m.id === matchId);
+                if(found) match = found;
+            });
         }
 
-        // --- PDF EXPORT ---
-        function printGroups() {
-            try {
-                const { jsPDF } = window.jspdf;
-                if(!jsPDF) { alert("Biblioteca PDF carregando..."); return; }
-                
-                const doc = new jsPDF();
+        if(!match) return;
+
+        let p1Name = "...", p2Name = "...";
+        if(type === 'group') {
+            const group = cat.groups.find(g => g.id === match.groupId);
+            p1Name = group.players.find(p => p.id === match.p1Id).name;
+            p2Name = group.players.find(p => p.id === match.p2Id).name;
+        } else {
+            p1Name = match.p1.name;
+            p2Name = match.p2.name;
+        }
+
+        currentModalMatch = match;
+        document.getElementById('modalMatchId').value = matchId;
+        document.getElementById('modalMatchType').value = type;
+        document.getElementById('modalP1Name').innerText = p1Name;
+        document.getElementById('modalP2Name').innerText = p2Name;
+        document.getElementById('modalScoreP1').value = match.scoreP1 !== null ? match.scoreP1 : '';
+        document.getElementById('modalScoreP2').value = match.scoreP2 !== null ? match.scoreP2 : '';
+        document.getElementById('modalTitle').innerText = type === 'group' ? 'Jogo de Grupo' : 'Jogo Eliminatório';
+
+        document.getElementById('scoreModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('scoreModal').classList.add('hidden');
+        currentModalMatch = null;
+    }
+
+    function _validateMatchScore(s1, s2) {
+        if (isNaN(s1) || isNaN(s2)) return "Digite um placar válido.";
+        if (s1 === s2) return "Empate não permitido.";
+        const win = Math.max(s1, s2);
+        const lose = Math.min(s1, s2);
+
+        if (win !== MATCH_WIN_SETS) return `Vencedor deve ter ${MATCH_WIN_SETS} sets.`;
+        if (lose < 0 || lose >= MATCH_WIN_SETS) return `Perdedor deve ter entre 0 e ${MATCH_WIN_SETS - 1} sets.`;
+
+        return null;
+    }
+
+    function confirmScore() {
+        const s1 = parseInt(document.getElementById('modalScoreP1').value);
+        const s2 = parseInt(document.getElementById('modalScoreP2').value);
+
+        const err = _validateMatchScore(s1, s2);
+        if (err) {
+            showToast(err, "error");
+            return;
+        }
+
+        currentModalMatch.scoreP1 = s1;
+        currentModalMatch.scoreP2 = s2;
+
+        if(document.getElementById('modalMatchType').value === 'group') {
+            currentModalMatch.winnerId = s1 > s2 ? currentModalMatch.p1Id : currentModalMatch.p2Id;
+            renderGroups();
+        } else {
+            currentModalMatch.winner = s1 > s2 ? currentModalMatch.p1 : currentModalMatch.p2;
+
+            if(currentModalMatch.nextMatchId) {
                 const cat = State.getCurrentCategory();
+                let nextMatch;
+                cat.bracket.rounds.some(r => {
+                    const f = r.find(m => m.id === currentModalMatch.nextMatchId);
+                    if(f) { nextMatch = f; return true; }
+                });
 
-                doc.setFontSize(18);
-                doc.text(`Jogos - ${cat.name}`, 14, 20);
-                
-                let y = 30;
-                cat.groups.forEach(g => {
-                    const matches = cat.matches.filter(m => m.groupId === g.id);
-                    doc.setFontSize(14);
-                    doc.setTextColor(234, 88, 12);
-                    doc.text(g.name, 14, y);
-                    y += 10;
-                    
-                    doc.setFontSize(12);
-                    doc.setTextColor(0, 0, 0);
-                    matches.forEach(m => {
-                        const p1 = g.players.find(p => p.id === m.p1Id).name;
-                        const p2 = g.players.find(p => p.id === m.p2Id).name;
-                        const res = m.winnerId ? `${m.scoreP1} x ${m.scoreP2}` : "___ x ___";
-                        doc.text(`${p1}  [ ${res} ]  ${p2}`, 14, y);
-                        y += 8;
-                    });
-                    y += 10;
+                if(nextMatch && nextMatch.sources) {
+                    if(nextMatch.sources[0] === currentModalMatch.id) {
+                        nextMatch.p1 = currentModalMatch.winner;
+                    } else {
+                        nextMatch.p2 = currentModalMatch.winner;
+                    }
+                    nextMatch.winner = null;
+                    nextMatch.scoreP1 = null;
+                    nextMatch.scoreP2 = null;
+                }
+            }
+            renderBracket();
+        }
+
+        State.save();
+        updateDashboard();
+        closeModal();
+        showToast("Resultado Salvo!", "success");
+    }
+
+    // --- DASHBOARD UPDATE ---
+    function updateDashboard() {
+        const cat = State.getCurrentCategory();
+        if(!cat) return;
+
+        document.getElementById('dash-total-players').innerText = cat.players.length;
+
+        let total = 0, played = 0;
+        if(cat.matches) {
+            total += cat.matches.length;
+            played += cat.matches.filter(m => m.winnerId).length;
+        }
+        if(cat.bracket) {
+            cat.bracket.rounds.forEach(r => {
+                total += r.length;
+                played += r.filter(m => m.winner).length;
+            });
+        }
+
+        document.getElementById('dash-matches-played').innerText = `${played}/${total}`;
+
+        let statusText = "Inscrições";
+        if(cat.status === 'groups') statusText = "Fase de Grupos";
+        if(cat.status === 'bracket') statusText = "Mata-Mata";
+        document.getElementById('dash-status').innerText = statusText;
+    }
+
+    // --- PODIO (para PDF) ---
+    function getPodium(cat) {
+        if (!cat || !cat.bracket || !cat.bracket.rounds || cat.bracket.rounds.length === 0) return null;
+        const rounds = cat.bracket.rounds;
+        const finalRound = rounds[rounds.length - 1];
+        const finalMatch = finalRound && finalRound[0];
+        if (!finalMatch || !finalMatch.winner || !finalMatch.winner.id || finalMatch.winner.id === 'bye') return null;
+
+        const champion = finalMatch.winner.name;
+        let runnerUp = '';
+        if (finalMatch.p1 && finalMatch.p2) {
+            runnerUp = (finalMatch.winner.id === finalMatch.p1.id) ? finalMatch.p2.name : finalMatch.p1.name;
+        }
+
+        let thirds = [];
+        if (rounds.length >= 2) {
+            const semiRound = rounds[rounds.length - 2];
+            if (semiRound && semiRound.length) {
+                semiRound.forEach(m => {
+                    if (!m || !m.winner || m.winner.id === 'bye') return;
+                    const loser = (m.winner.id === m.p1.id) ? m.p2 : m.p1;
+                    if (loser && loser.id && loser.id !== 'bye') thirds.push(loser.name);
+                });
+            }
+        }
+
+        thirds = [...new Set(thirds)].filter(Boolean);
+        return { champion, runnerUp, thirds };
+    }
+
+    // --- PDF EXPORT ---
+    function printGroups() {
+        try {
+            const { jsPDF } = window.jspdf;
+            if(!jsPDF) { alert("Biblioteca PDF carregando..."); return; }
+
+            const doc = new jsPDF();
+            const cat = State.getCurrentCategory();
+
+            doc.setFontSize(18);
+            doc.text(`Jogos - ${cat.name}`, 14, 20);
+
+            let y = 30;
+
+            cat.groups.forEach(g => {
+                // standings
+                const sorted = getSortedPlayersForGroup(cat, g);
+
+                doc.setFontSize(14);
+                doc.setTextColor(234, 88, 12);
+                doc.text(g.name, 14, y);
+                y += 8;
+
+                doc.setFontSize(11);
+                doc.setTextColor(0, 0, 0);
+                sorted.forEach((p, idx) => {
+                    doc.text(`${idx+1}º  ${p.name}  | V:${p.wins}  SD:${p.setDiff}`, 14, y);
+                    y += 6;
+                });
+
+                y += 4;
+
+                // matches
+                const matches = cat.matches.filter(m => m.groupId === g.id);
+
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                matches.forEach(m => {
+                    const p1 = g.players.find(p => p.id === m.p1Id).name;
+                    const p2 = g.players.find(p => p.id === m.p2Id).name;
+                    const res = m.winnerId ? `${m.scoreP1} x ${m.scoreP2}` : "___ x ___";
+                    doc.text(`${p1}  [ ${res} ]  ${p2}`, 14, y);
+                    y += 7;
                     if(y > 270) { doc.addPage(); y = 20; }
                 });
-                doc.save(`grupos_${cat.name}.pdf`);
-            } catch(e) {
-                console.error(e);
-                alert("Erro ao gerar PDF. Verifique o console.");
+
+                y += 10;
+                if(y > 270) { doc.addPage(); y = 20; }
+            });
+
+            // Podio (se finalizado)
+            const podium = getPodium(cat);
+            if (podium) {
+                if (y > 230) { doc.addPage(); y = 20; }
+                doc.setFontSize(16);
+                doc.setTextColor(234, 88, 12);
+                doc.text("PÓDIO", 14, y); y += 10;
+
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`1º: ${podium.champion}`, 14, y); y += 7;
+                doc.text(`2º: ${podium.runnerUp}`, 14, y); y += 7;
+
+                if (podium.thirds.length) {
+                    doc.text(`3º: ${podium.thirds.join(" / ")}`, 14, y); y += 7;
+                } else {
+                    doc.text(`3º: (semifinais não concluídas ou não aplicável)`, 14, y); y += 7;
+                }
             }
-        }
-        
-        function printBracket() {
-            window.print(); 
-        }
 
-        function showToast(msg, type='info') {
-            const container = document.getElementById('toast-container');
-            if(!container) return;
-            const el = document.createElement('div');
-            const colors = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-green-500' : 'bg-blue-500');
-            el.className = `toast ${colors} text-white px-6 py-3 rounded shadow-lg font-semibold flex items-center gap-3`;
-            el.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i> ${msg}`;
-            container.appendChild(el);
-            setTimeout(() => el.remove(), 3000);
+            doc.save(`grupos_${cat.name}.pdf`);
+        } catch(e) {
+            console.error(e);
+            alert("Erro ao gerar PDF. Verifique o console.");
         }
+    }
 
-    </script>
+    function printBracket() {
+        window.print();
+    }
+
+    function showToast(msg, type='info') {
+        const container = document.getElementById('toast-container');
+        if(!container) return;
+        const el = document.createElement('div');
+        const colors = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-green-500' : 'bg-blue-500');
+        el.className = `toast ${colors} text-white px-6 py-3 rounded shadow-lg font-semibold flex items-center gap-3`;
+        el.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i> ${msg}`;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+</script>
+
 </body>
 </html>
