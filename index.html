@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALTM Manager Pro 5.0 - Ultimate Edition</title>
+    <title>ALTM Manager Pro 5.1 - Ultimate Edition</title>
     
-    <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -24,12 +23,13 @@
 
         /* Bracket Styles */
         .bracket-wrapper { display: flex; padding: 20px; overflow-x: auto; gap: 40px; }
-        .round-column { display: flex; flex-direction: column; justify-content: space-around; min-width: 260px; }
+        .round-column { display: flex; flex-direction: column; justify-content: space-around; min-width: 260px; gap: 20px;}
         .match-card {
             background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: all 0.2s; border-left: 4px solid #e5e7eb; position: relative;
             margin: 10px 0; cursor: pointer; padding: 12px;
         }
+        .match-card.third-place { border-left-color: #3b82f6; } /* Destaque para disputa 3º lugar */
         .match-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
         .match-card.completed { border-left-color: #22c55e; }
         .match-card.pending { border-left-color: #f97316; }
@@ -56,65 +56,53 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-<!-- ERROR HANDLER -->
 <script>
 window.onerror = function(msg, url, line) {
     console.error('Runtime Error:', msg, line);
-    showToast('Erro interno. Tente recarregar ou resetar.', 'error');
+    showToast('Aviso: Verifique os dados inseridos.', 'error');
     return false;
 };
 </script>
 
-<!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
 
-<!-- BACKUP INPUT (HIDDEN) -->
 <input type="file" id="backupInput" accept=".json" class="hidden" onchange="restoreBackup(this)">
 
-<!-- SCORE MODAL -->
-<div id="scoreModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-800" id="modalTitle">Resultado</h3>
+<div id="scoreModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm overflow-y-auto pt-10 pb-10">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100 my-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800" id="modalTitle">Lançar Placar</h3>
             <button onclick="closeModal()" class="text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
         </div>
 
-        <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg mb-4">
-            <div class="text-center w-1/3 overflow-hidden">
-                <p class="font-bold text-gray-800 text-lg truncate" id="modalP1Name">P1</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <input type="number" id="modalScoreP1" class="w-16 h-16 text-3xl text-center border-2 border-gray-300 rounded-lg focus:border-orange-500 outline-none" min="0" max="9">
-                <span class="text-2xl font-bold text-gray-400">X</span>
-                <input type="number" id="modalScoreP2" class="w-16 h-16 text-3xl text-center border-2 border-gray-300 rounded-lg focus:border-orange-500 outline-none" min="0" max="9">
-            </div>
-            <div class="text-center w-1/3 overflow-hidden">
-                <p class="font-bold text-gray-800 text-lg truncate" id="modalP2Name">P2</p>
-            </div>
+        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg mb-4">
+            <div class="text-center w-5/12 overflow-hidden"><p class="font-bold text-gray-800 text-sm truncate" id="modalP1Name">P1</p></div>
+            <div class="text-center w-2/12"><span class="text-lg font-bold text-gray-400">X</span></div>
+            <div class="text-center w-5/12 overflow-hidden"><p class="font-bold text-gray-800 text-sm truncate" id="modalP2Name">P2</p></div>
         </div>
 
-        <!-- Quick Actions -->
+        <div id="setsContainer" class="flex flex-col gap-2 mb-4 bg-gray-50 p-4 rounded-lg">
+            </div>
+
         <div class="flex justify-center gap-2 mb-6">
-            <button onclick="applyWO('p1')" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200">WO (P1 Vence)</button>
-            <button onclick="applyWO('p2')" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200">WO (P2 Vence)</button>
+            <button onclick="applyWO('p1')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO (P1 Vence)</button>
+            <button onclick="applyWO('p2')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO (P2 Vence)</button>
         </div>
 
         <input type="hidden" id="modalMatchId"><input type="hidden" id="modalMatchType">
 
         <div class="flex gap-3">
             <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">Cancelar</button>
-            <button onclick="confirmScore()" class="flex-1 py-3 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-lg">Salvar</button>
+            <button onclick="confirmScore()" class="flex-1 py-3 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-lg">Salvar Resultado</button>
         </div>
     </div>
 </div>
 
-<!-- MAIN LAYOUT -->
 <div class="flex h-full">
-    <!-- SIDEBAR -->
     <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl hidden md:flex">
         <div class="p-6 border-b border-slate-800 bg-slate-950">
             <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>ALTM PRO</h1>
-            <p class="text-xs text-slate-400 mt-1">Versão 5.0 Ultimate</p>
+            <p class="text-xs text-slate-400 mt-1">Versão 5.1 Ultimate (CBTM)</p>
         </div>
         <div class="p-4">
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
@@ -127,14 +115,12 @@ window.onerror = function(msg, url, line) {
             <button onclick="switchTab('groups')" id="nav-groups" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-layer-group w-6"></i> Fase de Grupos</button>
             <button onclick="switchTab('bracket')" id="nav-bracket" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-trophy w-6"></i> Mata-Mata</button>
         </nav>
-        <!-- System Actions -->
         <div class="p-4 border-t border-slate-800 grid grid-cols-2 gap-2">
             <button onclick="downloadBackup()" class="text-xs bg-slate-800 text-blue-400 p-2 rounded hover:bg-slate-700"><i class="fas fa-download mr-1"></i> Backup</button>
             <button onclick="document.getElementById('backupInput').click()" class="text-xs bg-slate-800 text-green-400 p-2 rounded hover:bg-slate-700"><i class="fas fa-upload mr-1"></i> Restaurar</button>
         </div>
     </aside>
 
-    <!-- CONTENT -->
     <main class="flex-1 flex flex-col bg-gray-100 overflow-hidden relative">
         <header class="bg-white shadow-sm px-8 py-4 flex justify-between items-center z-10">
             <div>
@@ -143,12 +129,11 @@ window.onerror = function(msg, url, line) {
             </div>
             <div class="flex gap-2">
                 <button onclick="toggleTVMode()" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-200" title="Modo TV/Tela Cheia"><i class="fas fa-tv"></i></button>
-                <button onclick="resetSystem()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200"><i class="fas fa-trash-alt mr-1"></i> Reset</button>
+                <button onclick="resetSystem()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200"><i class="fas fa-trash-alt mr-1"></i> Reset Tudo</button>
             </div>
         </header>
 
         <div class="flex-1 overflow-auto p-8" id="mainContent">
-            <!-- DASHBOARD -->
             <div id="view-dashboard" class="view-section">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500 flex justify-between items-center">
@@ -164,13 +149,8 @@ window.onerror = function(msg, url, line) {
                         <div class="bg-green-100 p-3 rounded-full text-green-600"><i class="fas fa-check-circle text-xl"></i></div>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm p-8 text-center">
-                    <h3 class="text-xl font-bold text-gray-700">Bem-vindo ao ALTM PRO 5.0</h3>
-                    <p class="text-gray-500 mt-2">Use o menu lateral para gerenciar seu torneio.</p>
-                </div>
             </div>
 
-            <!-- REGISTRATION -->
             <div id="view-registration" class="view-section hidden">
                 <div class="bg-white rounded-xl shadow-sm p-6 mb-6 flex gap-4">
                     <input type="text" id="newPlayerName" placeholder="Nome do Atleta" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" onkeydown="if(event.key==='Enter') addPlayer()">
@@ -185,7 +165,6 @@ window.onerror = function(msg, url, line) {
                 </div>
             </div>
 
-            <!-- GROUPS -->
             <div id="view-groups" class="view-section hidden">
                 <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center justify-between no-print">
                     <div class="flex gap-2">
@@ -193,7 +172,7 @@ window.onerror = function(msg, url, line) {
                         <button onclick="printScoresheets('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas</button>
                         <button onclick="printReport('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Relatório</button>
                     </div>
-                    <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Sistema Snake automático.</div>
+                    <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Snake automático & Desempate CBTM.</div>
                 </div>
                 <div id="groupsContainer" class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20"></div>
                 <div id="finishGroupsBtn" class="fixed bottom-8 right-8 hidden no-print">
@@ -201,7 +180,6 @@ window.onerror = function(msg, url, line) {
                 </div>
             </div>
 
-            <!-- BRACKET -->
             <div id="view-bracket" class="view-section hidden">
                 <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4 items-center no-print">
                     <button onclick="printReport('bracket')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Imprimir Chave</button>
@@ -213,7 +191,6 @@ window.onerror = function(msg, url, line) {
     </main>
 </div>
 
-<!-- JAVASCRIPT LOGIC -->
 <script>
 // CONFIG
 const MATCH_WIN_SETS = 3; 
@@ -261,7 +238,6 @@ function switchTab(tabId) {
         navBtn.classList.add('border-orange-500', 'text-orange-500', 'bg-slate-800');
     }
     
-    // Header updates
     const titles = {
         'dashboard': ['Dashboard', 'Visão Geral'],
         'registration': ['Inscrições', 'Gerenciamento'],
@@ -292,27 +268,23 @@ function changeCategory() {
 }
 function addNewCategory() {
     const name = prompt('Nome da Categoria:');
-    if(name) {
-        const id = State.addCategory(name);
+    if(name && name.trim()) {
+        const id = State.addCategory(name.trim());
         State.currentCategoryId = id;
-        renderCategorySelect();
-        switchTab('registration');
+        renderCategorySelect(); switchTab('registration');
         showToast('Categoria criada!', 'success');
     }
 }
 function resetSystem() {
-    if(confirm('Apagar TUDO?')) { localStorage.removeItem(STORAGE_KEY); location.reload(); }
+    if(confirm('Tem certeza? Isso apagará TUDO!')) { localStorage.removeItem(STORAGE_KEY); location.reload(); }
 }
 
 // BACKUP SYSTEM
 function downloadBackup() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(State.categories));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "backup_torneio_" + new Date().toISOString().slice(0,10) + ".json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+    const a = document.createElement('a');
+    a.href = dataStr; a.download = "backup_altm_" + new Date().toISOString().slice(0,10) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
 }
 function restoreBackup(input) {
     const file = input.files[0];
@@ -321,11 +293,8 @@ function restoreBackup(input) {
     reader.onload = function(e) {
         try {
             const data = JSON.parse(e.target.result);
-            if(Array.isArray(data)) {
-                State.categories = data;
-                save();
-                location.reload();
-            } else { alert('Arquivo inválido!'); }
+            if(Array.isArray(data)) { State.categories = data; save(); location.reload(); } 
+            else alert('Arquivo inválido!');
         } catch(err) { alert('Erro ao ler arquivo.'); }
     };
     reader.readAsText(file);
@@ -338,25 +307,16 @@ function addPlayer() {
     if(!name) return;
     const cat = getCurrentCategory();
     if(cat.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        showToast('Nome já existe!', 'error'); return;
+        showToast('Atleta já existe!', 'error'); return;
     }
-    cat.players.push({ id: Date.now() + Math.random().toString(), name, wins: 0, setsWon: 0, setDiff: 0 });
-    save(); input.value = ''; renderPlayersList(); showToast('Adicionado!', 'success'); updateDashboard();
-}
-function editPlayerName(id) {
-    const cat = getCurrentCategory();
-    const p = cat.players.find(x => x.id === id);
-    const newName = prompt("Novo nome:", p.name);
-    if(newName && newName.trim()) {
-        p.name = newName.trim();
-        save(); renderPlayersList();
-    }
+    cat.players.push({ id: Date.now() + Math.random().toString(), name });
+    save(); input.value = ''; renderPlayersList(); updateDashboard();
 }
 function removePlayer(id) {
     const cat = getCurrentCategory();
     if(cat.status !== 'registration') { showToast('Torneio em andamento!', 'error'); return; }
     cat.players = cat.players.filter(p => p.id !== id);
-    save(); renderPlayersList();
+    save(); renderPlayersList(); updateDashboard();
 }
 function renderPlayersList() {
     const cat = getCurrentCategory();
@@ -366,44 +326,65 @@ function renderPlayersList() {
     
     list.innerHTML = cat.players.map(p => `
         <li class="px-6 py-3 flex justify-between items-center hover:bg-gray-50 transition">
-            <div class="flex items-center gap-3">
-                <span class="font-medium text-gray-800">${p.name}</span>
-                <button onclick="editPlayerName('${p.id}')" class="text-gray-400 hover:text-blue-500"><i class="fas fa-pencil-alt text-xs"></i></button>
-            </div>
+            <span class="font-medium text-gray-800">${p.name}</span>
             <button onclick="removePlayer('${p.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
         </li>
     `).join('');
 }
 
-// ENGINE & STATS (Mantendo sua lógica aprovada)
+// ENGINE & STATS (CBTM Tie-breaker Logic)
 function buildStatsForGroup(group, matches) {
     const stats = {};
-    group.players.forEach(p => stats[p.id] = { id: p.id, wins: 0, setDiff: 0, setsWon: 0, h2h: {} });
+    group.players.forEach(p => stats[p.id] = { id: p.id, wins: 0, setsWon: 0, setsLost: 0, pointsWon: 0, pointsLost: 0, h2h: {} });
+    
     matches.forEach(m => {
         if(!m.winnerId) return;
         const a = stats[m.p1Id], b = stats[m.p2Id];
+        if(!a || !b) return; // Prevent errors if player was deleted
+        
         const s1 = m.scoreP1||0, s2 = m.scoreP2||0;
-        a.setsWon += s1; b.setsWon += s2;
-        a.setDiff += (s1-s2); b.setDiff += (s2-s1);
-        m.winnerId === m.p1Id ? a.wins++ : b.wins++;
-        a.h2h[m.p2Id] = m.winnerId; b.h2h[m.p1Id] = m.winnerId;
+        const p1 = m.pointsP1||0, p2 = m.pointsP2||0;
+        
+        a.setsWon += s1; a.setsLost += s2;
+        b.setsWon += s2; b.setsLost += s1;
+        a.pointsWon += p1; a.pointsLost += p2;
+        b.pointsWon += p2; b.pointsLost += p1;
+        
+        if(m.winnerId === m.p1Id) { a.wins++; a.h2h[b.id] = a.id; b.h2h[a.id] = a.id; } 
+        else { b.wins++; a.h2h[b.id] = b.id; b.h2h[a.id] = b.id; }
+    });
+
+    Object.values(stats).forEach(s => {
+        s.setRatio = s.setsLost === 0 ? s.setsWon : s.setsWon / s.setsLost;
+        s.pointRatio = s.pointsLost === 0 ? s.pointsWon : s.pointsWon / s.pointsLost;
     });
     return stats;
 }
+
 function getSortedPlayersForGroup(cat, group) {
     const groupMatches = cat.matches.filter(m => m.groupId === group.id && m.winnerId);
     const stats = buildStatsForGroup(group, groupMatches);
-    group.players.forEach(p => {
-        const s = stats[p.id];
-        p.wins = s?s.wins:0; p.setDiff = s?s.setDiff:0; p.setsWon = s?s.setsWon:0;
+    
+    let sorted = [...group.players].map(p => {
+        const s = stats[p.id] || { wins:0, setRatio:0, pointRatio:0 };
+        return { ...p, wins: s.wins, setRatio: s.setRatio, pointRatio: s.pointRatio, stats: s };
     });
-    // Simplified logic for brevity, relying on your tested "triangular" logic logic implicitly via sorting
-    return [...group.players].sort((a,b) => {
-        if(b.wins !== a.wins) return b.wins - a.wins;
-        // H2H logic would go here, fallback to sets
-        if(b.setDiff !== a.setDiff) return b.setDiff - a.setDiff;
-        return b.setsWon - a.setsWon;
+
+    sorted.sort((a,b) => {
+        if(b.wins !== a.wins) return b.wins - a.wins; // 1. Vitórias
+        
+        let tiedPlayers = sorted.filter(p => p.wins === a.wins);
+        if(tiedPlayers.length === 2) {
+            // 2. Empate Duplo: Confronto Direto
+            let winnerId = a.stats.h2h[b.id];
+            if(winnerId) return winnerId === b.id ? 1 : -1;
+        }
+        
+        // 3. Empate Triplo: Set Ratio -> Point Ratio
+        if(b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
+        return b.pointRatio - a.pointRatio;
     });
+    return sorted;
 }
 
 // GROUPS
@@ -426,16 +407,27 @@ function generateGroups() {
     
     cat.matches = [];
     cat.groups.forEach(g => {
-        for(let i=0; i<g.players.length; i++) {
-            for(let j=i+1; j<g.players.length; j++) {
-                cat.matches.push({
-                    id: `g-${g.id}-${i}-${j}`, groupId: g.id,
-                    p1Id: g.players[i].id, p2Id: g.players[j].id,
-                    scoreP1: null, scoreP2: null, winnerId: null
-                });
+        const addMatch = (i, j) => {
+            if(!g.players[i] || !g.players[j]) return;
+            cat.matches.push({
+                id: `g-${g.id}-${i}-${j}-${Date.now()}`, groupId: g.id,
+                p1Id: g.players[i].id, p2Id: g.players[j].id,
+                scoreP1: null, scoreP2: null, pointsP1: null, pointsP2: null, setScores: [], winnerId: null
+            });
+        };
+
+        // Ordem oficial dos jogos
+        if(g.players.length === 3) {
+            [[0,2], [1,2], [0,1]].forEach(pair => addMatch(pair[0], pair[1]));
+        } else if (g.players.length === 4) {
+            [[0,3], [1,2], [0,2], [1,3], [0,1], [2,3]].forEach(pair => addMatch(pair[0], pair[1]));
+        } else {
+            for(let i=0; i<g.players.length; i++) {
+                for(let j=i+1; j<g.players.length; j++) addMatch(i,j);
             }
         }
     });
+    
     cat.status = 'groups'; cat.bracket = null;
     save(); renderGroups(); showToast('Grupos Sorteados!', 'success'); updateDashboard();
 }
@@ -443,26 +435,29 @@ function generateGroups() {
 function renderGroups() {
     const cat = getCurrentCategory();
     const container = document.getElementById('groupsContainer');
-    if(!cat.groups.length) { container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">Sem grupos.</div>'; return; }
+    if(!cat.groups || !cat.groups.length) { container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">Sem grupos.</div>'; return; }
     
     container.innerHTML = cat.groups.map(g => {
         const matches = cat.matches.filter(m => m.groupId === g.id);
         const sorted = getSortedPlayersForGroup(cat, g);
         return `
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            <div class="bg-slate-800 text-white p-3 flex justify-between items-center"><h3 class="font-bold">${g.name}</h3></div>
+            <div class="bg-slate-800 text-white p-3 flex justify-between items-center"><h3 class="font-bold">${g.name}</h3> <span class="text-xs bg-slate-700 px-2 py-1 rounded">${g.players.length} Atletas</span></div>
             <div class="p-2">
-                <table class="w-full text-sm text-left"><thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th class="p-1">Pos</th><th class="p-1">Atleta</th><th class="p-1 text-center">V</th><th class="p-1 text-center">SD</th></tr></thead>
-                <tbody>${sorted.map((p,i) => `<tr class="border-b ${i<2?'bg-green-50':''}"><td class="p-1 font-bold ${i<2?'text-green-700':''}">${i+1}º</td><td class="p-1 truncate max-w-[100px]">${p.name}</td><td class="p-1 text-center">${p.wins}</td><td class="p-1 text-center">${p.setDiff}</td></tr>`).join('')}</tbody></table>
+                <table class="w-full text-sm text-left"><thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th class="p-1">Pos</th><th class="p-1">Atleta</th><th class="p-1 text-center" title="Vitórias">V</th><th class="p-1 text-center" title="Set Ratio">SR</th></tr></thead>
+                <tbody>${sorted.map((p,i) => `<tr class="border-b ${i<2?'bg-green-50':''}"><td class="p-1 font-bold ${i<2?'text-green-700':''}">${i+1}º</td><td class="p-1 truncate max-w-[120px]">${p.name}</td><td class="p-1 text-center font-bold">${p.wins}</td><td class="p-1 text-center text-xs">${p.setRatio.toFixed(1)}</td></tr>`).join('')}</tbody></table>
             </div>
             <div class="bg-gray-50 p-2 space-y-2 flex-1 overflow-y-auto max-h-[300px]">
-                ${matches.map(m => {
-                    const p1 = g.players.find(x => x.id === m.p1Id);
-                    const p2 = g.players.find(x => x.id === m.p2Id);
+                ${matches.map((m, idx) => {
+                    const p1 = g.players.find(x => x.id === m.p1Id) || {name:'?'};
+                    const p2 = g.players.find(x => x.id === m.p2Id) || {name:'?'};
                     const done = m.winnerId !== null;
-                    return `<div onclick="openScoreModal('group','${m.id}')" class="cursor-pointer bg-white p-2 rounded border hover:shadow-md flex justify-between text-sm ${done?'border-l-4 border-green-500':'border-l-4 border-orange-300'}">
+                    return `<div onclick="openScoreModal('group','${m.id}')" class="cursor-pointer bg-white p-2 rounded border hover:shadow-md flex justify-between items-center text-sm ${done?'border-l-4 border-green-500':'border-l-4 border-orange-300'}">
                         <span class="truncate w-1/3 text-right ${m.winnerId===p1.id?'font-bold text-green-600':''}">${p1.name}</span>
-                        <span class="bg-gray-100 px-2 rounded font-bold">${m.scoreP1!==null?m.scoreP1:'-'} x ${m.scoreP2!==null?m.scoreP2:'-'}</span>
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="bg-gray-100 px-2 rounded font-bold text-base">${m.scoreP1!==null?m.scoreP1:'-'} x ${m.scoreP2!==null?m.scoreP2:'-'}</span>
+                            ${done && m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-400 mt-1">${m.setScores.map(s => `${s.p1}-${s.p2}`).join(', ')}</span>` : ''}
+                        </div>
                         <span class="truncate w-1/3 text-left ${m.winnerId===p2.id?'font-bold text-green-600':''}">${p2.name}</span>
                     </div>`
                 }).join('')}
@@ -480,47 +475,77 @@ function finalizeGroups() {
     if(!confirm('Gerar Chave Mata-Mata?')) return;
     const cat = getCurrentCategory();
     
-    // Qualifiers
     let qualifiers = [];
-    cat.groups.forEach(g => {
+    cat.groups.forEach((g, idx) => {
         const sorted = getSortedPlayersForGroup(cat, g);
-        if(sorted[0]) qualifiers.push({...sorted[0], rank:1});
-        if(sorted[1]) qualifiers.push({...sorted[1], rank:2});
+        if(sorted[0]) qualifiers.push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
+        if(sorted[1]) qualifiers.push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
     });
+    
     if(qualifiers.length < 2) { showToast('Poucos classificados', 'error'); return; }
 
-    // Seed logic: 1st places vs 2nd places
-    qualifiers.sort((a,b) => a.rank - b.rank); // 1s first, then 2s
-    
-    // Simple power of 2 bracket
-    let size = 2; while(size < qualifiers.length) size *= 2;
-    
     let rounds = [];
     let matchId = 1;
-    
-    // Round 1
     let r1 = [];
-    for(let i=0; i<size; i+=2) {
-        const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
-        const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'}; // simplistic seeding
-        
-        let m = { 
-            id: `b-r1-${matchId++}`, round: 1, 
-            p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id},
-            scoreP1: null, scoreP2: null, winner: null 
-        };
-        // Auto resolve BYE
-        if(m.p1.id==='bye' || m.p2.id==='bye') {
-            m.winner = m.p1.id!=='bye' ? m.p1 : m.p2;
-            m.scoreP1 = m.winner.id===m.p1.id ? 3 : 0;
-            m.scoreP2 = m.winner.id===m.p2.id ? 3 : 0;
+
+    // LÓGICA ESPECIAL ADALBERTO (Exatos 3 Grupos / 6 Classificados)
+    if(cat.groups.length === 3 && qualifiers.length === 6) {
+        let q1A = qualifiers.find(x => x.rank===1 && x.gIdx===0);
+        let q1B = qualifiers.find(x => x.rank===1 && x.gIdx===1);
+        let q1C = qualifiers.find(x => x.rank===1 && x.gIdx===2);
+        let q2A = qualifiers.find(x => x.rank===2 && x.gIdx===0);
+        let q2B = qualifiers.find(x => x.rank===2 && x.gIdx===1);
+        let q2C = qualifiers.find(x => x.rank===2 && x.gIdx===2);
+
+        let customSeed = [
+            q1A, {id:'bye', name:'BYE'}, 
+            q2B, q2C, 
+            q1C, q2A, 
+            {id:'bye', name:'BYE'}, q1B
+        ];
+
+        for(let i=0; i<8; i+=2) {
+            let p1 = customSeed[i], p2 = customSeed[i+1];
+            let m = { 
+                id: `b-r1-${matchId++}`, round: 1, 
+                p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id},
+                scoreP1: null, scoreP2: null, winner: null 
+            };
+            if(m.p1.id==='bye' || m.p2.id==='bye') {
+                m.winner = m.p1.id!=='bye' ? m.p1 : m.p2;
+                m.scoreP1 = m.winner.id===m.p1.id ? MATCH_WIN_SETS : 0;
+                m.scoreP2 = m.winner.id===m.p2.id ? MATCH_WIN_SETS : 0;
+            }
+            r1.push(m);
         }
-        r1.push(m);
+    } 
+    // LÓGICA PADRÃO (Potência de 2)
+    else {
+        qualifiers.sort((a,b) => a.rank - b.rank); // 1s first
+        let size = 2; while(size < qualifiers.length) size *= 2;
+        
+        for(let i=0; i<size; i+=2) {
+            const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
+            const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'}; 
+            
+            let m = { 
+                id: `b-r1-${matchId++}`, round: 1, 
+                p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id},
+                scoreP1: null, scoreP2: null, winner: null 
+            };
+            if(m.p1.id==='bye' || m.p2.id==='bye') {
+                m.winner = m.p1.id!=='bye' ? m.p1 : m.p2;
+                m.scoreP1 = m.winner.id===m.p1.id ? MATCH_WIN_SETS : 0;
+                m.scoreP2 = m.winner.id===m.p2.id ? MATCH_WIN_SETS : 0;
+            }
+            r1.push(m);
+        }
     }
+    
     rounds.push(r1);
 
-    // Next rounds
-    let totalRounds = Math.log2(size);
+    // LÓGICA DE PROGRESSÃO E DISPUTA DE 3º LUGAR
+    let totalRounds = Math.log2(r1.length * 2);
     for(let r=2; r<=totalRounds; r++) {
         let prev = rounds[rounds.length-1];
         let next = [];
@@ -531,17 +556,30 @@ function finalizeGroups() {
                 p1: m1.winner || {name:`Venc. J${m1.id.split('-').pop()}`, id:null},
                 p2: m2.winner || {name:`Venc. J${m2.id.split('-').pop()}`, id:null},
                 scoreP1: null, scoreP2: null, winner: null,
-                sources: [m1.id, m2.id]
+                sources: [m1.id, m2.id], isThirdPlace: false
             };
             m1.nextId = nm.id; m2.nextId = nm.id;
             next.push(nm);
         }
+
+        // Criar disputa de 3º lugar se for a rodada final (a partir da semifinal)
+        if(r === totalRounds && prev.length === 2) {
+            let nm3 = {
+                id: `b-r${r}-3rd`, round: r, isThirdPlace: true,
+                p1: {name:`Perd. J${prev[0].id.split('-').pop()}`, id:null},
+                p2: {name:`Perd. J${prev[1].id.split('-').pop()}`, id:null},
+                scoreP1: null, scoreP2: null, winner: null,
+                sources: [prev[0].id, prev[1].id], isLoserBracket: true
+            };
+            next.push(nm3);
+        }
+        
         rounds.push(next);
     }
     
     cat.bracket = { rounds };
     cat.status = 'bracket';
-    save(); switchTab('bracket'); showToast('Mata-Mata Gerado!', 'success');
+    save(); switchTab('bracket'); showToast('Mata-Mata Gerado!', 'success'); updateDashboard();
 }
 
 function renderBracket() {
@@ -550,20 +588,22 @@ function renderBracket() {
     if(!cat || !cat.bracket) { canvas.innerHTML = '<div class="w-full text-center py-10 text-gray-400">Aguardando grupos.</div>'; return; }
     
     canvas.innerHTML = cat.bracket.rounds.map((r, i) => {
-        const name = i === cat.bracket.rounds.length-1 ? 'FINAL' : (i === cat.bracket.rounds.length-2 ? 'SEMIFINAL' : `Rodada ${i+1}`);
+        const isFinalRound = i === cat.bracket.rounds.length-1;
+        const name = isFinalRound ? 'FINAL' : (i === cat.bracket.rounds.length-2 ? 'SEMIFINAL' : `Rodada ${i+1}`);
         return `
         <div class="round-column">
-            <h3 class="text-center font-bold text-orange-600 mb-4 text-sm">${name}</h3>
+            <h3 class="text-center font-bold text-orange-600 mb-2 text-sm">${name}</h3>
             <div class="flex flex-col justify-around flex-1">
                 ${r.map(m => {
                     const done = !!m.winner;
                     const isBye = m.p1.id==='bye' || m.p2.id==='bye';
                     return `
-                    <div class="match-card ${done?'completed':'pending'}" ${!done && !isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
-                        <div class="flex justify-between mb-1"><span class="truncate w-28 ${m.winner?.id===m.p1.id?'font-bold text-green-600':''}">${m.p1.name}</span><span class="bg-gray-100 px-1 rounded text-xs">${m.scoreP1!=null?m.scoreP1:'-'}</span></div>
-                        <div class="flex justify-between"><span class="truncate w-28 ${m.winner?.id===m.p2.id?'font-bold text-green-600':''}">${m.p2.name}</span><span class="bg-gray-100 px-1 rounded text-xs">${m.scoreP2!=null?m.scoreP2:'-'}</span></div>
-                        <div class="text-[10px] text-gray-400 text-center mt-1">J${m.id.split('-').pop()}</div>
-                        ${i < cat.bracket.rounds.length-1 ? '<div class="connector"></div>' : ''}
+                    <div class="match-card ${done?'completed':'pending'} ${m.isThirdPlace?'third-place mt-10':''}" ${!done && !isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
+                        ${m.isThirdPlace ? `<div class="text-[10px] font-bold text-blue-500 mb-1">Disputa de 3º Lugar</div>` : ''}
+                        <div class="flex justify-between mb-1"><span class="truncate w-28 ${m.winner?.id===m.p1.id?'font-bold text-green-600':''}">${m.p1.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP1!=null?m.scoreP1:'-'}</span></div>
+                        <div class="flex justify-between"><span class="truncate w-28 ${m.winner?.id===m.p2.id?'font-bold text-green-600':''}">${m.p2.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP2!=null?m.scoreP2:'-'}</span></div>
+                        <div class="text-[10px] text-gray-400 text-center mt-2 border-t pt-1">Jogo ${m.id.split('-').pop().replace('3rd','3º')}</div>
+                        ${i < cat.bracket.rounds.length-1 && !m.isThirdPlace ? '<div class="connector"></div>' : ''}
                     </div>`
                 }).join('')}
             </div>
@@ -582,57 +622,105 @@ function openScoreModal(type, mid) {
     if(!m) return;
     curMatch = { m, type };
     
-    // Resolve names
-    let n1 = m.p1.name, n2 = m.p2.name;
+    let n1 = m.p1?.name, n2 = m.p2?.name;
     if(type==='group') {
         const g = cat.groups.find(x => x.id === m.groupId);
-        n1 = g.players.find(x => x.id === m.p1Id).name;
-        n2 = g.players.find(x => x.id === m.p2Id).name;
+        n1 = g.players.find(x => x.id === m.p1Id)?.name;
+        n2 = g.players.find(x => x.id === m.p2Id)?.name;
     }
     
     document.getElementById('modalP1Name').innerText = n1;
     document.getElementById('modalP2Name').innerText = n2;
-    document.getElementById('modalScoreP1').value = m.scoreP1!==null ? m.scoreP1 : '';
-    document.getElementById('modalScoreP2').value = m.scoreP2!==null ? m.scoreP2 : '';
+    
+    // Build Sets Inputs
+    let setsHtml = '';
+    for(let i=1; i<=5; i++) {
+        let sp1 = m.setScores && m.setScores[i-1] ? m.setScores[i-1].p1 : '';
+        let sp2 = m.setScores && m.setScores[i-1] ? m.setScores[i-1].p2 : '';
+        setsHtml += `
+            <div class="flex justify-center items-center gap-3">
+                <span class="text-xs text-gray-500 font-bold w-10">Set ${i}</span>
+                <input type="number" id="m_s${i}_p1" class="w-16 h-10 text-center border-2 border-gray-300 rounded focus:border-orange-500 outline-none font-bold" value="${sp1}" min="0">
+                <span class="text-gray-400">x</span>
+                <input type="number" id="m_s${i}_p2" class="w-16 h-10 text-center border-2 border-gray-300 rounded focus:border-orange-500 outline-none font-bold" value="${sp2}" min="0">
+            </div>
+        `;
+    }
+    document.getElementById('setsContainer').innerHTML = setsHtml;
+    
     document.getElementById('scoreModal').classList.remove('hidden');
 }
+
 function closeModal() { document.getElementById('scoreModal').classList.add('hidden'); curMatch = null; }
+
 function applyWO(winner) {
-    if(winner === 'p1') {
-        document.getElementById('modalScoreP1').value = MATCH_WIN_SETS;
-        document.getElementById('modalScoreP2').value = 0;
-    } else {
-        document.getElementById('modalScoreP1').value = 0;
-        document.getElementById('modalScoreP2').value = MATCH_WIN_SETS;
+    // Fill 3 sets with 11x0 or 0x11
+    for(let i=1; i<=3; i++) {
+        document.getElementById(`m_s${i}_p1`).value = winner === 'p1' ? 11 : 0;
+        document.getElementById(`m_s${i}_p2`).value = winner === 'p1' ? 0 : 11;
     }
+    document.getElementById(`m_s4_p1`).value = ''; document.getElementById(`m_s4_p2`).value = '';
+    document.getElementById(`m_s5_p1`).value = ''; document.getElementById(`m_s5_p2`).value = '';
+    showToast('WO Aplicado. Clique em Salvar.', 'success');
 }
+
 function confirmScore() {
-    const s1 = parseInt(document.getElementById('modalScoreP1').value);
-    const s2 = parseInt(document.getElementById('modalScoreP2').value);
-    if(isNaN(s1) || isNaN(s2)) { showToast('Inválido', 'error'); return; }
+    let setsWon1 = 0, setsWon2 = 0;
+    let points1 = 0, points2 = 0;
+    let setScores = [];
+    
+    for(let i=1; i<=5; i++) {
+        let p1Str = document.getElementById(`m_s${i}_p1`).value;
+        let p2Str = document.getElementById(`m_s${i}_p2`).value;
+        if(p1Str !== '' && p2Str !== '') {
+            let p1 = parseInt(p1Str), p2 = parseInt(p2Str);
+            setScores.push({p1, p2});
+            points1 += p1; points2 += p2;
+            if(p1 > p2) setsWon1++;
+            else if(p2 > p1) setsWon2++;
+        }
+    }
+
+    if(setsWon1 === setsWon2) { showToast('Empate não permitido no Tênis de Mesa.', 'error'); return; }
     
     const { m, type } = curMatch;
-    m.scoreP1 = s1; m.scoreP2 = s2;
+    m.scoreP1 = setsWon1; m.scoreP2 = setsWon2;
+    m.pointsP1 = points1; m.pointsP2 = points2;
+    m.setScores = setScores;
     
     if(type === 'group') {
-        m.winnerId = s1 > s2 ? m.p1Id : m.p2Id;
+        m.winnerId = setsWon1 > setsWon2 ? m.p1Id : m.p2Id;
         renderGroups();
     } else {
-        m.winner = s1 > s2 ? m.p1 : m.p2;
-        // Propagate
+        m.winner = setsWon1 > setsWon2 ? m.p1 : m.p2;
+        let loser = setsWon1 > setsWon2 ? m.p2 : m.p1;
+        
+        // Propagate in Bracket
         if(m.nextId) {
             const cat = getCurrentCategory();
             let nextM; cat.bracket.rounds.some(r => nextM = r.find(x => x.id === m.nextId));
             if(nextM) {
-                if(nextM.sources[0] === m.id) nextM.p1 = m.winner;
-                else nextM.p2 = m.winner;
-                // Reset next match if it was already played (re-play needed)
-                nextM.winner = null; nextM.scoreP1 = null; nextM.scoreP2 = null;
+                // If it's standard progression, pass winner. 
+                if(!nextM.isLoserBracket) {
+                    if(nextM.sources[0] === m.id) nextM.p1 = m.winner;
+                    else nextM.p2 = m.winner;
+                }
+                nextM.winner = null; nextM.scoreP1 = null; nextM.scoreP2 = null; nextM.setScores = [];
             }
         }
+        
+        // Propagate Loser to 3rd place match if needed
+        const cat = getCurrentCategory();
+        let thirdPlaceMatch = cat.bracket.rounds[cat.bracket.rounds.length-1].find(x => x.isThirdPlace);
+        if(thirdPlaceMatch && thirdPlaceMatch.sources.includes(m.id)) {
+             if(thirdPlaceMatch.sources[0] === m.id) thirdPlaceMatch.p1 = loser;
+             else thirdPlaceMatch.p2 = loser;
+             thirdPlaceMatch.winner = null; thirdPlaceMatch.scoreP1 = null; thirdPlaceMatch.scoreP2 = null; thirdPlaceMatch.setScores = [];
+        }
+
         renderBracket();
     }
-    save(); updateDashboard(); closeModal(); showToast('Salvo!', 'success');
+    save(); updateDashboard(); closeModal(); showToast('Placar Salvo!', 'success');
 }
 
 // DASHBOARD
@@ -647,7 +735,7 @@ function updateDashboard() {
     document.getElementById('dash-status').innerText = cat.status === 'registration' ? 'Inscrições' : (cat.status==='groups'?'Grupos':'Mata-Mata');
 }
 
-// PDF ENGINE (PROFESSIONAL)
+// PDF ENGINE 
 function printScoresheets(phase) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -658,9 +746,9 @@ function printScoresheets(phase) {
         cat.groups.forEach(g => {
             const ms = cat.matches.filter(m => m.groupId === g.id);
             ms.forEach(m => {
-                const p1 = g.players.find(p=>p.id===m.p1Id).name;
-                const p2 = g.players.find(p=>p.id===m.p2Id).name;
-                matchesToPrint.push({ p1, p2, info: `${g.name} - Jogo ${m.id.split('-').pop()}` });
+                const p1 = g.players.find(p=>p.id===m.p1Id)?.name;
+                const p2 = g.players.find(p=>p.id===m.p2Id)?.name;
+                matchesToPrint.push({ p1, p2, info: `${g.name} - Jogo ${m.id.split('-')[3]}` });
             });
         });
     } else {
@@ -668,42 +756,40 @@ function printScoresheets(phase) {
         cat.bracket.rounds.forEach((r, idx) => {
             r.forEach(m => {
                 if(m.p1.id!=='bye' && m.p2.id!=='bye') {
-                    const info = `Mata-Mata - Jogo ${m.id.split('-').pop()} (${idx===cat.bracket.rounds.length-1?'Final':'Eliminatória'})`;
-                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info });
+                    let infoStr = `Mata-Mata - Jogo ${m.id.split('-').pop().replace('3rd', '3º')}`;
+                    if(idx===cat.bracket.rounds.length-1) infoStr += m.isThirdPlace ? ' (Disp. 3º Lugar)' : ' (FINAL)';
+                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
                 }
             });
         });
     }
 
-    // 2 Scoresheets per page
+    if(matchesToPrint.length === 0) { showToast('Sem jogos para imprimir.', 'error'); return; }
+
     matchesToPrint.forEach((m, i) => {
         if(i % 2 === 0 && i > 0) doc.addPage();
-        const yOffset = (i % 2) * 140; // Top or Bottom half
+        const yOffset = (i % 2) * 140; 
         
         doc.setFillColor(240, 240, 240);
         doc.rect(10, 10 + yOffset, 190, 130, 'F');
         
         doc.setFontSize(16); doc.setTextColor(0);
-        doc.text("SÚMULA DE JOGO", 105, 20 + yOffset, { align: 'center' });
+        doc.text("SÚMULA DE JOGO - TÊNIS DE MESA", 105, 20 + yOffset, { align: 'center' });
         doc.setFontSize(12);
-        doc.text(cat.name + " - " + m.info, 105, 28 + yOffset, { align: 'center' });
+        doc.text(cat.name + " | " + m.info, 105, 28 + yOffset, { align: 'center' });
         
-        // Table Header
         doc.rect(20, 40 + yOffset, 170, 10);
         doc.text("SET 1", 90, 47 + yOffset); doc.text("SET 2", 110, 47 + yOffset); 
         doc.text("SET 3", 130, 47 + yOffset); doc.text("SET 4", 150, 47 + yOffset); doc.text("SET 5", 170, 47 + yOffset);
         
-        // Player 1 Row
         doc.rect(20, 50 + yOffset, 170, 15);
-        doc.setFontSize(14); doc.text(m.p1, 25, 60 + yOffset);
-        // Player 2 Row
+        doc.setFontSize(12); doc.text(m.p1, 25, 60 + yOffset);
+        
         doc.rect(20, 65 + yOffset, 170, 15);
         doc.text(m.p2, 25, 75 + yOffset);
         
-        // Grid lines
         for(let x=85; x<=190; x+=20) doc.line(x, 40 + yOffset, x, 80 + yOffset);
         
-        // Footer
         doc.setFontSize(10);
         doc.text("Vencedor: _________________________________", 20, 100 + yOffset);
         doc.text("Assinatura Árbitro: ________________________", 110, 100 + yOffset);
@@ -713,9 +799,8 @@ function printScoresheets(phase) {
 }
 
 function printReport(phase) {
-    if(phase === 'bracket') window.print(); // Browser print is better for visual bracket
+    if(phase === 'bracket') window.print(); 
     else {
-        // Groups Summary PDF
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const cat = getCurrentCategory();
@@ -727,27 +812,13 @@ function printReport(phase) {
             const sorted = getSortedPlayersForGroup(cat, g);
             doc.autoTable({
                 startY: y,
-                head: [[g.name, 'Vitórias', 'Saldo Sets']],
-                body: sorted.map((p,i) => [`${i+1}º ${p.name}`, p.wins, p.setDiff]),
+                head: [[g.name, 'Vitórias', 'Set Ratio', 'Pts Ratio']],
+                body: sorted.map((p,i) => [`${i+1}º ${p.name}`, p.wins, p.setRatio.toFixed(2), p.pointRatio.toFixed(2)]),
                 theme: 'grid',
                 headStyles: { fillColor: [234, 88, 12] }
             });
             y = doc.lastAutoTable.finalY + 10;
         });
-
-        // Podium if finished
-        if(cat.bracket) {
-            const final = cat.bracket.rounds[cat.bracket.rounds.length-1][0];
-            if(final && final.winner) {
-                doc.setFontSize(16); doc.setTextColor(234, 88, 12);
-                doc.text("PÓDIO FINAL", 14, y + 10);
-                doc.setFontSize(12); doc.setTextColor(0);
-                doc.text(`1º LUGAR: ${final.winner.name}`, 14, y + 20);
-                const runner = final.winner.id===final.p1.id ? final.p2 : final.p1;
-                doc.text(`2º LUGAR: ${runner.name}`, 14, y + 27);
-                doc.text(`3º LUGAR: (Dois perdedores da semifinal)`, 14, y + 34);
-            }
-        }
         
         doc.save(`relatorio_${cat.name}.pdf`);
     }
