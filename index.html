@@ -110,7 +110,7 @@ window.onerror = function(msg, url, line) {
     <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl hidden md:flex">
         <div class="p-6 border-b border-slate-800 bg-slate-950">
             <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>ALTM PRO</h1>
-            <p class="text-xs text-slate-400 mt-1">Versão 5.2 (Pontos & Teclado)</p>
+            <p class="text-xs text-slate-400 mt-1">Versão 5.2 </p>
         </div>
         <div class="p-4">
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
@@ -125,7 +125,6 @@ window.onerror = function(msg, url, line) {
         </nav>
         <div class="p-4 border-t border-slate-800 grid grid-cols-2 gap-2">
             <button onclick="downloadBackup()" class="text-xs bg-slate-800 text-blue-400 p-2 rounded hover:bg-slate-700"><i class="fas fa-download mr-1"></i> Backup</button>
-            <button onclick="document.getElementById('backupInput').click()" class="text-xs bg-slate-800 text-green-400 p-2 rounded hover:bg-slate-700"><i class="fas fa-upload mr-1"></i> Restaurar</button>
         </div>
     </aside>
 
@@ -611,8 +610,21 @@ function finalizeGroups() {
 function renderBracket() {
     const cat = getCurrentCategory();
     const canvas = document.getElementById('bracketCanvas');
-    if(!cat || !cat.bracket) { canvas.innerHTML = '<div class="w-full text-center py-10 text-gray-400">Aguardando grupos.</div>'; return; }
     
+    // Se não há bracket oficial, mostra PREVIEW
+    if(!cat || !cat.bracket) { 
+        // Verifica se há grupos sorteados
+        if(!cat.groups || cat.groups.length === 0) {
+            canvas.innerHTML = '<div class="w-full text-center py-10 text-gray-400">Aguardando grupos.</div>'; 
+            return; 
+        }
+        
+        // GERA PREVIEW VISUAL
+        canvas.innerHTML = generateBracketPreview();
+        return;
+    }
+    
+    // BRACKET OFICIAL (quando já foi gerado)
     canvas.innerHTML = cat.bracket.rounds.map((r, i) => {
         const isFinalRound = i === cat.bracket.rounds.length-1;
         const name = isFinalRound ? 'FINAL' : (i === cat.bracket.rounds.length-2 ? 'SEMIFINAL' : `Rodada ${i+1}`);
@@ -636,6 +648,95 @@ function renderBracket() {
         </div>`;
     }).join('');
 }
+
+
+
+function generateBracketPreview() {
+    const cat = getCurrentCategory();
+    const numGroups = cat.groups.length;
+    
+    let qualifiers = [];
+    cat.groups.forEach((g, idx) => {
+        qualifiers.push({name: `1º ${g.name}`, id: `preview-${idx}-1`, rank: 1});
+        qualifiers.push({name: `2º ${g.name}`, id: `preview-${idx}-2`, rank: 2});
+    });
+    
+    // Determina tamanho da chave
+    let size = 2;
+    while(size < qualifiers.length) size *= 2;
+    
+    // Monta primeira rodada (PREVIEW)
+    let matches = [];
+    for(let i = 0; i < size; i += 2) {
+        const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
+        const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'};
+        
+        matches.push({
+            p1: p1,
+            p2: p2,
+            id: `preview-${i}`,
+            scoreP1: null,
+            scoreP2: null,
+            winner: null
+        });
+    }
+    
+    // Monta rodadas subsequentes
+    let rounds = [matches];
+    let totalRounds = Math.log2(size);
+    
+    for(let r = 2; r <= totalRounds; r++) {
+        let prev = rounds[rounds.length-1];
+        let next = [];
+        for(let i = 0; i < prev.length; i += 2) {
+            next.push({
+                p1: {name: `Venc. J${prev[i].id.split('-').pop()}`, id: null},
+                p2: {name: `Venc. J${prev[i+1].id.split('-').pop()}`, id: null},
+                id: `preview-r${r}-${i}`,
+                scoreP1: null,
+                scoreP2: null,
+                winner: null
+            });
+        }
+        rounds.push(next);
+    }
+    
+    // RENDERIZA HTML PREVIEW
+    return `
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
+            <p class="text-sm text-yellow-800">
+                <i class="fas fa-eye mr-2"></i>
+                <strong>PREVIEW:</strong> Esta é uma visualização do mata-mata. 
+                Complete os grupos e clique em "Gerar Mata-Mata" para efetivar.
+            </p>
+        </div>
+        ${rounds.map((r, i) => {
+            const name = i === rounds.length-1 ? 'FINAL' : (i === rounds.length-2 ? 'SEMIFINAL' : `Rodada ${i+1}`);
+            return `
+            <div class="round-column">
+                <h3 class="text-center font-bold text-orange-600 mb-2 text-sm">${name}</h3>
+                <div class="flex flex-col justify-around flex-1">
+                    ${r.map(m => {
+                        const isBye = m.p1.id === 'bye' || m.p2.id === 'bye';
+                        return `
+                        <div class="match-card pending opacity-60 cursor-default" style="border-left-color: #fbbf24;">
+                            <div class="flex justify-between mb-1">
+                                <span class="truncate w-28 text-xs">${m.p1.name}</span>
+                                <span class="bg-gray-100 px-1 rounded text-xs">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="truncate w-28 text-xs">${m.p2.name}</span>
+                                <span class="bg-gray-100 px-1 rounded text-xs">-</span>
+                            </div>
+                            <div class="text-[10px] text-gray-400 text-center mt-1">Previsto</div>
+                        </div>`
+                    }).join('')}
+                </div>
+            </div>`;
+        }).join('')}
+    `;
+}
+
 
 // SCORE MODAL WITH KEYBOARD SUPPORT
 let curMatch = null;
