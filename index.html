@@ -201,6 +201,14 @@ window.onerror = function(msg, url, line) {
 </div>
 
 <script>
+
+
+function formatSetScoresTiny(setScores) {
+    if(!setScores || !setScores.length) return '';
+    return setScores.map(s => `${s.p1}-${s.p2}`).join(' • ');
+}
+
+
 // CONFIG
 const MATCH_WIN_SETS = 3; 
 const STORAGE_KEY = 'altm_pro_v5_data';
@@ -518,7 +526,11 @@ function renderGroups() {
                     return `<div onclick="openScoreModal('group','${m.id}')" class="cursor-pointer bg-white p-2 rounded border hover:shadow-md flex justify-between items-center text-sm ${done?'border-l-4 border-green-500':'border-l-4 border-orange-300'}">
                         <span class="truncate w-1/3 text-right ${m.winnerId===p1.id?'font-bold text-green-600':''}">${p1.name}</span>
                         <div class="flex flex-col items-center justify-center">
-                            <span class="bg-gray-100 px-2 rounded font-bold text-base">${m.scoreP1!==null?m.scoreP1:'-'} x ${m.scoreP2!==null?m.scoreP2:'-'}</span>
+                            <span class="bg-gray-100 px-2 rounded font-bold text-base">
+  ${m.scoreP1!==null?m.scoreP1:'-'} x ${m.scoreP2!==null?m.scoreP2:'-'}
+</span>
+${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt-1">${formatSetScoresTiny(m.setScores)}</span>` : ''}
+
                         </div>
                         <span class="truncate w-1/3 text-left ${m.winnerId===p2.id?'font-bold text-green-600':''}">${p2.name}</span>
                     </div>`
@@ -808,7 +820,13 @@ function confirmScore() {
         }
     }
 
-    if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
+    // Só valida quando alguém já fechou a partida (melhora usabilidade no PC)
+if(setsWon1 < MATCH_WIN_SETS && setsWon2 < MATCH_WIN_SETS) {
+    showToast(`Faltam sets: precisa chegar em ${MATCH_WIN_SETS}.`, 'error');
+    return;
+}
+if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
+
     
     const { m, type } = curMatch;
     m.scoreP1 = setsWon1; m.scoreP2 = setsWon2;
@@ -848,17 +866,28 @@ function printScoresheets(phase) {
     const doc = new jsPDF();
     const cat = getCurrentCategory();
     let matchesToPrint = [];
-    if(phase === 'groups') {
-        cat.groups.forEach(g => {
-            const ms = cat.matches.filter(m => m.groupId === g.id);
-            ms.forEach(m => {
-                const p1 = g.players.find(p=>p.id===m.p1Id)?.name;
-                const p2 = g.players.find(p=>p.id===m.p2Id)?.name;
-                matchesToPrint.push({ p1, p2, info: `${g.name} - Jogo ${m.id.split('-')[3]}` });
-            });
-        });
+    if(!cat.bracket) {
+        if(!cat.groups || cat.groups.length === 0) {
+            showToast('Sorteie os grupos primeiro.', 'error');
+            return;
+        }
+
+        // Preview = 1º de um grupo vs 2º de outro (mesma lógica visual do preview)
+        const firsts = cat.groups.map(g => `1º ${g.name}`);
+        const seconds = cat.groups.map(g => `2º ${g.name}`);
+
+        // Gera confrontos (semifinais / primeira rodada) em branco
+        for(let i=0; i<firsts.length; i++) {
+            const p1 = firsts[i];
+            const p2 = seconds[(seconds.length - 1 - i)] || 'BYE';
+            if(p2 !== 'BYE') matchesToPrint.push({ p1, p2, info: `Mata-Mata (Preview) - Jogo ${i+1}` });
+        }
+
+        // Final em branco
+        matchesToPrint.push({ p1: 'Vencedor Jogo 1', p2: 'Vencedor Jogo 2', info: 'Mata-Mata (Preview) - FINAL' });
+
     } else {
-        if(!cat.bracket) return;
+        // Bracket oficial (teu código atual)
         cat.bracket.rounds.forEach((r, idx) => {
             r.forEach(m => {
                 if(m.p1.id!=='bye' && m.p2.id!=='bye') {
