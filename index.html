@@ -158,34 +158,64 @@ window.onerror = function(msg, url, line) {
             </div>
         </header>
 
-  <!-- Formulário de Cadastro Global e Sincronização -->
-<div class="bg-white rounded-xl shadow-sm p-6 mb-6 border-l-4 border-yellow-500 flex gap-4 flex-wrap items-end">
-    <div class="flex-1">
-        <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome do Atleta</label>
-        <input type="text" id="globalPlayerName" placeholder="Ex: Hugo Calderano" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none uppercase font-bold text-gray-700">
-    </div>
-    <div class="w-32">
-        <label class="text-xs font-bold text-gray-500 uppercase mb-1 block" title="Usado apenas para sorteio">Ranking (Pts)</label>
-        <input type="number" id="globalPlayerRanking" placeholder="Ex: 1000" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none text-center font-bold text-gray-700">
-    </div>
-    <div class="w-32">
-        <label class="text-xs font-bold text-gray-500 uppercase mb-1 block text-orange-600" title="Pontuação baseada em vitórias/derrotas">Rating (Elo)</label>
-        <input type="number" id="globalPlayerRating" placeholder="Ex: 500" class="w-full p-3 border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none text-center font-bold text-orange-700 bg-orange-50">
-    </div>
+        <!-- VIEW RANKING GERAL (LIGA) -->
+<div id="view-ranking" class="view-section hidden">
     
-    <!-- Botões -->
-    <div class="flex gap-2">
+    <!-- Header da Liga -->
+    <div class="bg-slate-800 rounded-xl shadow-sm p-6 mb-6 text-white flex justify-between items-center">
+        <div>
+            <h2 class="text-3xl font-black text-yellow-400 uppercase tracking-wider"><i class="fas fa-globe-americas mr-2"></i> Liga ALTM Pro</h2>
+            <p class="text-slate-300 text-sm mt-1">Banco de dados oficial de atletas. O rating atualiza automaticamente após os jogos.</p>
+        </div>
+        <div class="bg-slate-700 p-4 rounded-lg text-center border border-slate-600">
+            <span class="block text-3xl font-black text-white" id="global-player-count">0</span>
+            <span class="text-xs text-slate-400 uppercase font-bold tracking-widest">Atletas Registrados</span>
+        </div>
+    </div>
+
+    <!-- Formulário de Cadastro Global -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border-l-4 border-yellow-500 flex gap-4 flex-wrap items-end">
+        <div class="flex-1">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome do Atleta</label>
+            <input type="text" id="globalPlayerName" placeholder="Ex: Hugo Calderano" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none uppercase font-bold text-gray-700">
+        </div>
+        <div class="w-32">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block" title="Usado apenas para sorteio">Ranking (Pts)</label>
+            <input type="number" id="globalPlayerRanking" placeholder="Ex: 1000" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none text-center font-bold text-gray-700">
+        </div>
+        <div class="w-32">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block text-orange-600" title="Pontuação baseada em vitórias/derrotas">Rating (Elo)</label>
+            <input type="number" id="globalPlayerRating" placeholder="Ex: 500" class="w-full p-3 border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none text-center font-bold text-orange-700 bg-orange-50">
+        </div>
         <button onclick="registerGlobalPlayer()" class="bg-yellow-500 text-slate-900 px-8 py-3 rounded-lg font-black hover:bg-yellow-400 shadow-md flex items-center gap-2 h-[52px] transition transform hover:scale-105">
             <i class="fas fa-plus-circle"></i> Registrar
         </button>
-
-        <!-- NOVO: Botão de Sincronizar -->
-        <button onclick="migrarAtletasAntigos()" class="bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-300 shadow-md flex items-center gap-2 h-[52px] transition border border-gray-300" title="Puxar atletas dos torneios antigos para a Liga">
-            <i class="fas fa-sync-alt"></i> Sincronizar
-        </button>
     </div>
-</div>
 
+    <!-- Tabela Geral de Atletas -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+        <div class="bg-gray-100 p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700 uppercase tracking-wider text-sm"><i class="fas fa-list-ol mr-2 text-gray-500"></i> Classificação Geral</h3>
+        </div>
+        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 sticky top-0 shadow-sm z-10">
+                    <tr>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-16 text-center">Pos</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase">Atleta</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-32 text-center">Sorteio (Ranking)</th>
+                        <th class="p-4 text-xs font-black text-orange-500 uppercase w-32 text-center bg-orange-50 border-l border-r border-orange-100">Força (Rating)</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-20 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="globalPlayersList" class="divide-y divide-gray-100 text-sm">
+                    <!-- Gerado via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
 
 
         <div class="flex-1 overflow-auto p-8" id="mainContent">
@@ -329,44 +359,6 @@ window.onerror = function(msg, url, line) {
 </div>
 
 <script>
-
-
-// ==========================================
-// FUNÇÃO MÁGICA: MIGRAR ATLETAS ANTIGOS
-// ==========================================
-window.migrarAtletasAntigos = function() {
-    let migrados = 0;
-    
-    // Garante que State.players existe
-    if (!State.players) State.players = [];
-
-    State.categories.forEach(cat => {
-        if (cat.players) {
-            cat.players.forEach(p => {
-                // Se o cara ainda não está na Liga Global
-                if (!State.players.some(mp => mp.name === p.name)) {
-                    State.players.push({
-                        id: 'p-' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        name: p.name,
-                        ranking: p.points || 0,
-                        rating: 500, // Dá 500 de rating base pra todo mundo
-                        matchesPlayed: 0
-                    });
-                    migrados++;
-                }
-            });
-        }
-    });
-
-    if (migrados > 0) {
-        save();
-        renderGlobalPlayers();
-        showToast(`${migrados} atletas migrados para a Liga!`, 'success');
-    } else {
-        showToast('Todos os atletas já estão na Liga.', 'error');
-    }
-}
-
 
     // ==========================================
 // FUNÇÃO: DELETAR CATEGORIA ATUAL
