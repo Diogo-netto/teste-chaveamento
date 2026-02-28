@@ -60,7 +60,8 @@ window.onerror = function(msg, url, line) {
 };
 </script>
 
-<div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2"></div>
+
 <input type="file" id="backupInput" accept=".json" class="hidden" onchange="restoreBackup(this)">
 
 <div id="scoreModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm overflow-y-auto pt-10 pb-10">
@@ -118,10 +119,16 @@ window.onerror = function(msg, url, line) {
             <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600">+ Nova Categoria</button>
         </div>
         <nav class="flex-1 overflow-y-auto py-4">
+            <button onclick="switchTab('ranking')" id="nav-ranking" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent text-yellow-400 font-bold">
+                <i class="fas fa-medal w-6"></i> Ranking Geral
+            </button>
             <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent active-nav"><i class="fas fa-chart-pie w-6"></i> Dashboard</button>
             <button onclick="switchTab('registration')" id="nav-registration" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-users w-6"></i> Inscrições</button>
             <button onclick="switchTab('groups')" id="nav-groups" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-layer-group w-6"></i> Fase de Grupos</button>
             <button onclick="switchTab('bracket')" id="nav-bracket" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-trophy w-6"></i> Mata-Mata</button>
+             <button onclick="switchTab('podium')" id="nav-podium" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent hidden">
+               <i class="fas fa-trophy w-6"></i> Pódio
+            </button>
         </nav>
         <div class="p-4 border-t border-slate-800 grid grid-cols-2 gap-2">
             <button onclick="downloadBackup()" class="text-xs bg-slate-800 text-blue-400 p-2 rounded hover:bg-slate-700"><i class="fas fa-download mr-1"></i> Backup</button>
@@ -140,6 +147,66 @@ window.onerror = function(msg, url, line) {
             </div>
         </header>
 
+        <!-- VIEW RANKING GERAL (LIGA) -->
+<div id="view-ranking" class="view-section hidden">
+    
+    <!-- Header da Liga -->
+    <div class="bg-slate-800 rounded-xl shadow-sm p-6 mb-6 text-white flex justify-between items-center">
+        <div>
+            <h2 class="text-3xl font-black text-yellow-400 uppercase tracking-wider"><i class="fas fa-globe-americas mr-2"></i> Liga ALTM Pro</h2>
+            <p class="text-slate-300 text-sm mt-1">Banco de dados oficial de atletas. O rating atualiza automaticamente após os jogos.</p>
+        </div>
+        <div class="bg-slate-700 p-4 rounded-lg text-center border border-slate-600">
+            <span class="block text-3xl font-black text-white" id="global-player-count">0</span>
+            <span class="text-xs text-slate-400 uppercase font-bold tracking-widest">Atletas Registrados</span>
+        </div>
+    </div>
+
+    <!-- Formulário de Cadastro Global -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border-l-4 border-yellow-500 flex gap-4 flex-wrap items-end">
+        <div class="flex-1">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome do Atleta</label>
+            <input type="text" id="globalPlayerName" placeholder="Ex: Hugo Calderano" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none uppercase font-bold text-gray-700">
+        </div>
+        <div class="w-32">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block" title="Usado apenas para sorteio">Ranking (Pts)</label>
+            <input type="number" id="globalPlayerRanking" placeholder="Ex: 1000" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-yellow-500 outline-none text-center font-bold text-gray-700">
+        </div>
+        <div class="w-32">
+            <label class="text-xs font-bold text-gray-500 uppercase mb-1 block text-orange-600" title="Pontuação baseada em vitórias/derrotas">Rating (Elo)</label>
+            <input type="number" id="globalPlayerRating" placeholder="Ex: 500" class="w-full p-3 border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none text-center font-bold text-orange-700 bg-orange-50">
+        </div>
+        <button onclick="registerGlobalPlayer()" class="bg-yellow-500 text-slate-900 px-8 py-3 rounded-lg font-black hover:bg-yellow-400 shadow-md flex items-center gap-2 h-[52px] transition transform hover:scale-105">
+            <i class="fas fa-plus-circle"></i> Registrar
+        </button>
+    </div>
+
+    <!-- Tabela Geral de Atletas -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+        <div class="bg-gray-100 p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700 uppercase tracking-wider text-sm"><i class="fas fa-list-ol mr-2 text-gray-500"></i> Classificação Geral</h3>
+        </div>
+        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 sticky top-0 shadow-sm z-10">
+                    <tr>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-16 text-center">Pos</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase">Atleta</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-32 text-center">Sorteio (Ranking)</th>
+                        <th class="p-4 text-xs font-black text-orange-500 uppercase w-32 text-center bg-orange-50 border-l border-r border-orange-100">Força (Rating)</th>
+                        <th class="p-4 text-xs font-black text-gray-400 uppercase w-20 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="globalPlayersList" class="divide-y divide-gray-100 text-sm">
+                    <!-- Gerado via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+
         <div class="flex-1 overflow-auto p-8" id="mainContent">
             <div id="view-dashboard" class="view-section">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -157,6 +224,86 @@ window.onerror = function(msg, url, line) {
                     </div>
                 </div>
             </div>
+
+ <!-- VIEW PODIUM -->
+<div id="view-podium" class="view-section hidden">
+    <div class="max-w-7xl mx-auto py-10 px-4">
+        
+        <!-- Header Animado -->
+        <div class="text-center mb-20">
+            <i class="fas fa-trophy text-6xl text-yellow-500 mb-4 animate-bounce"></i>
+            <h2 class="text-5xl font-extrabold text-gray-800 uppercase tracking-wider drop-shadow-md">Premiação Final</h2>
+            <div class="inline-block mt-4 px-8 py-2 bg-slate-800 text-white rounded-full shadow-lg">
+                <span class="text-xl font-bold uppercase" id="podium-category-name"></span>
+            </div>
+        </div>
+
+        <!-- Cards Display (2º, 1º, 3º, 3º) -->
+        <div class="flex flex-col lg:flex-row justify-center items-end gap-6 w-full">
+            
+            <!-- 2º LUGAR (Esquerda) -->
+            <div class="bg-gradient-to-br from-slate-300 to-slate-500 p-1 rounded-2xl shadow-xl transform transition hover:-translate-y-2 relative h-64 w-full lg:w-1/4 order-2 lg:order-1 mt-10 lg:mt-0">
+                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-50 rounded-full p-4 shadow-lg border-4 border-slate-400">
+                    <i class="fas fa-medal text-5xl text-slate-500"></i>
+                </div>
+                <div class="bg-white rounded-xl p-4 pt-16 h-full flex flex-col justify-center items-center text-center">
+                    <span class="text-3xl font-black text-slate-400 mb-1">2º LUGAR</span>
+                    <!-- AQUI ENTROU O UPPERCASE -->
+                    <h3 class="text-3xl font-bold text-gray-800 w-full truncate px-2 uppercase" id="podium-2nd"></h3>
+                    <p class="text-xs text-gray-600 mt-2 font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full border border-slate-300">Vice-Campeão</p>
+                </div>
+            </div>
+
+            <!-- 1º LUGAR (Centro, Maior) -->
+            <div class="bg-gradient-to-br from-yellow-300 to-yellow-600 p-1 rounded-2xl shadow-2xl transform transition hover:-translate-y-2 relative h-80 w-full lg:w-1/3 order-1 lg:order-2 z-10 scale-105 mb-8 lg:mb-0">
+                <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-yellow-100 rounded-full p-5 shadow-xl border-4 border-yellow-500 animate-pulse">
+                    <i class="fas fa-crown text-6xl text-yellow-500"></i>
+                </div>
+                <div class="bg-white rounded-xl p-4 pt-20 h-full flex flex-col justify-center items-center text-center">
+                    <span class="text-4xl font-black text-yellow-500 mb-2">1º LUGAR</span>
+                    <!-- AQUI ENTROU O UPPERCASE -->
+                    <h3 class="text-4xl font-extrabold text-gray-900 w-full truncate px-2 uppercase" id="podium-1st"></h3>
+                    <span class="mt-4 bg-yellow-100 text-yellow-800 px-5 py-2 rounded-full text-sm font-black uppercase tracking-widest border-2 border-yellow-400 shadow-sm">Grande Campeão</span>
+                </div>
+            </div>
+
+            <!-- 3º LUGAR A (Direita 1) -->
+            <div class="bg-gradient-to-br from-orange-300 to-orange-500 p-1 rounded-2xl shadow-xl transform transition hover:-translate-y-2 relative h-56 w-full lg:w-1/5 order-3 lg:order-3 mt-10 lg:mt-0">
+                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-orange-50 rounded-full p-4 shadow-lg border-4 border-orange-400">
+                    <i class="fas fa-medal text-4xl text-orange-600"></i>
+                </div>
+                <div class="bg-white rounded-xl p-4 pt-14 h-full flex flex-col justify-center items-center text-center">
+                    <span class="text-2xl font-black text-orange-400 mb-1">3º LUGAR</span>
+                    <!-- AQUI ENTROU O UPPERCASE -->
+                    <h3 class="text-2xl font-bold text-gray-800 w-full truncate px-2 uppercase" id="podium-3rd-a"></h3>
+                    <p class="text-xs text-gray-500 mt-2 font-bold uppercase tracking-widest bg-orange-100 px-3 py-1 rounded-full">Semifinalista</p>
+                </div>
+            </div>
+
+            <!-- 3º LUGAR B (Direita 2) -->
+            <div class="bg-gradient-to-br from-orange-300 to-orange-500 p-1 rounded-2xl shadow-xl transform transition hover:-translate-y-2 relative h-56 w-full lg:w-1/5 order-4 lg:order-4 mt-10 lg:mt-0">
+                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-orange-50 rounded-full p-4 shadow-lg border-4 border-orange-400">
+                    <i class="fas fa-medal text-4xl text-orange-600"></i>
+                </div>
+                <div class="bg-white rounded-xl p-4 pt-14 h-full flex flex-col justify-center items-center text-center">
+                    <span class="text-2xl font-black text-orange-400 mb-1">3º LUGAR</span>
+                    <!-- AQUI ENTROU O UPPERCASE -->
+                    <h3 class="text-2xl font-bold text-gray-800 w-full truncate px-2 uppercase" id="podium-3rd-b"></h3>
+                    <p class="text-xs text-gray-500 mt-2 font-bold uppercase tracking-widest bg-orange-100 px-3 py-1 rounded-full">Semifinalista</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Botão Voltar -->
+        <div class="text-center mt-16 pb-10">
+            <button onclick="switchTab('bracket')" class="bg-slate-800 text-white px-8 py-4 rounded-full font-bold shadow-xl hover:bg-slate-700 hover:-translate-y-1 transform transition-all flex items-center justify-center gap-3 mx-auto text-lg border-2 border-slate-600">
+                <i class="fas fa-arrow-left"></i> Voltar ao Chaveamento
+            </button>
+        </div>
+    </div>
+</div>
+
 
             <div id="view-registration" class="view-section hidden">
                 <div class="bg-white rounded-xl shadow-sm p-6 mb-6 flex gap-4 flex-wrap">
@@ -203,6 +350,88 @@ window.onerror = function(msg, url, line) {
 <script>
 
 
+// ==========================================
+// MÓDULO: RANKING GLOBAL (LIGA ALTM PRO)
+// ==========================================
+
+function registerGlobalPlayer() {
+    const nameInput = document.getElementById('globalPlayerName');
+    const rankingInput = document.getElementById('globalPlayerRanking');
+    const ratingInput = document.getElementById('globalPlayerRating');
+
+    const name = nameInput.value.trim().toUpperCase();
+    const ranking = parseInt(rankingInput.value) || 0;
+    const rating = parseInt(ratingInput.value) || 500; // Rating padrão se deixar vazio
+
+    if (!name) {
+        showToast('Digite o nome do atleta!', 'error');
+        return;
+    }
+
+    if (State.players.some(p => p.name === name)) {
+        showToast('Atleta já registrado na Liga!', 'error');
+        return;
+    }
+
+    State.players.push({
+        id: 'p-' + Date.now(),
+        name: name,
+        ranking: ranking, // Fixo para sorteio
+        rating: rating,   // Dinâmico (sobe e desce)
+        matchesPlayed: 0
+    });
+
+    save();
+    
+    // Limpa inputs
+    nameInput.value = '';
+    rankingInput.value = '';
+    ratingInput.value = '';
+    nameInput.focus();
+
+    renderGlobalPlayers();
+    showToast('Atleta registrado na Liga!', 'success');
+}
+
+function removeGlobalPlayer(id) {
+    if(!confirm('Atenção! Isso apaga o atleta da Liga definitivamente. Continuar?')) return;
+    State.players = State.players.filter(p => p.id !== id);
+    save();
+    renderGlobalPlayers();
+}
+
+function renderGlobalPlayers() {
+    const tbody = document.getElementById('globalPlayersList');
+    document.getElementById('global-player-count').innerText = State.players.length;
+
+    if (State.players.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400 font-bold">Nenhum atleta registrado na Liga ALTM Pro.</td></tr>`;
+        return;
+    }
+
+    // Ordena do maior RATING para o menor
+    const sorted = [...State.players].sort((a, b) => b.rating - a.rating);
+
+    tbody.innerHTML = sorted.map((p, i) => `
+        <tr class="hover:bg-slate-50 transition ${i < 3 ? 'bg-yellow-50/30' : ''}">
+            <td class="p-4 text-center font-black ${i===0?'text-yellow-500 text-lg':(i===1?'text-slate-400 text-lg':(i===2?'text-orange-400 text-lg':'text-gray-400'))}">${i + 1}º</td>
+            <td class="p-4 font-bold text-gray-800">${p.name}</td>
+            <td class="p-4 text-center font-semibold text-gray-500">${p.ranking} pts</td>
+            <td class="p-4 text-center font-black text-orange-600 bg-orange-50/50 border-l border-r border-orange-100 text-lg">${p.rating}</td>
+            <td class="p-4 text-center">
+                <button onclick="removeGlobalPlayer('${p.id}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Atualizar o switchTab para reconhecer a nova tela
+// Cole isso dentro do objeto 'titles' da função switchTab existente no seu código:
+// 'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'],
+
+
 function formatSetScoresTiny(setScores) {
     if(!setScores || !setScores.length) return '';
     return setScores.map(s => `${s.p1}-${s.p2}`).join(' • ');
@@ -210,22 +439,38 @@ function formatSetScoresTiny(setScores) {
 
 
 // CONFIG
-const MATCH_WIN_SETS = 3; 
+const MATCH_WIN_SETS = 3;
 const STORAGE_KEY = 'altm_pro_v5_data';
+const PLAYERS_KEY = 'altm_global_players'; // <-- Coloquei a chave global aqui junto!
 
-// STATE
-const State = { categories: [], currentCategoryId: null };
+// STATE E BANCO DE DADOS GLOBAL
+const State = { 
+    categories: [], 
+    currentCategoryId: null,
+    players: [] // <-- BANCO DE DADOS DE ATLETAS DA LIGA
+};
+
 const getCurrentCategory = () => State.categories.find(c => c.id === State.currentCategoryId);
-const save = () => { localStorage.setItem(STORAGE_KEY, JSON.stringify(State.categories)); };
+
+const save = () => { 
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(State.categories)); 
+    localStorage.setItem(PLAYERS_KEY, JSON.stringify(State.players)); 
+};
 
 const load = () => {
     try {
         const data = localStorage.getItem(STORAGE_KEY);
         if (data) State.categories = JSON.parse(data);
+
+        const playersData = localStorage.getItem(PLAYERS_KEY);
+        if (playersData) State.players = JSON.parse(playersData);
+
     } catch(e) { console.error(e); }
+    
     if (!State.categories.length) State.addCategory('Geral');
     if (!State.currentCategoryId) State.currentCategoryId = State.categories[0].id;
 };
+
 
 // CATEGORY MANAGER
 State.addCategory = (name) => {
@@ -234,10 +479,73 @@ State.addCategory = (name) => {
     save(); return id;
 };
 
+function updateDashboard() {
+    const cat = getCurrentCategory();
+    if (!cat) return;
+
+    const totalPlayers = cat.players.length;
+    const matchesPlayed = cat.matches.filter(m => m.winnerId).length +
+        (cat.bracket ? cat.bracket.rounds.flat().filter(m => m.winner).length : 0);
+
+    const statusMap = {
+        'registration': 'Inscrições',
+        'groups': 'Fase de Grupos',
+        'bracket': 'Mata-Mata',
+        'finished': 'Finalizado'
+    };
+
+    document.getElementById('dash-total-players').innerText = totalPlayers;
+    document.getElementById('dash-matches-played').innerText = matchesPlayed;
+    document.getElementById('dash-status').innerText = statusMap[cat.status] || cat.status;
+}
+
+
+function showPodium() {
+    const cat = getCurrentCategory();
+    if (!cat || !cat.bracket) return;
+
+    const finalRound = cat.bracket.rounds[cat.bracket.rounds.length - 1];
+    const finalMatch = finalRound.find(m => !m.isThirdPlace);
+    
+    if (!finalMatch || !finalMatch.winner) return;
+
+    // 1º e 2º lugar
+    const first = finalMatch.winner;
+    const second = finalMatch.winner.id === finalMatch.p1.id ? finalMatch.p2 : finalMatch.p1;
+
+    // 3º lugares (perdedores das semis)
+    const semiRound = cat.bracket.rounds[cat.bracket.rounds.length - 2];
+    const thirds = semiRound
+        .filter(m => !m.isThirdPlace)
+        .map(m => m.winner.id === m.p1.id ? m.p2 : m.p1);
+
+    // Preencher dados
+    document.getElementById('podium-category-name').innerText = cat.name;
+    document.getElementById('podium-1st').innerText = first.name;
+    document.getElementById('podium-2nd').innerText = second.name;
+    document.getElementById('podium-3rd-a').innerText = thirds[0]?.name || '-';
+    document.getElementById('podium-3rd-b').innerText = thirds[1]?.name || '-';
+
+    // Mostrar botão no menu e abrir tela
+    document.getElementById('nav-podium').classList.remove('hidden');
+    switchTab('podium');
+}
+
+
 // INIT
 window.addEventListener('DOMContentLoaded', () => {
     load(); renderCategorySelect(); updateDashboard(); switchTab('dashboard');
 });
+
+// INIT (mantenha apenas UM)
+window.addEventListener('DOMContentLoaded', () => {
+  load();
+  renderCategorySelect();
+  renderGlobalPlayers();   // <- adiciona aqui
+  updateDashboard();
+  switchTab('dashboard');
+});
+
 
 // NAVIGATION
 function switchTab(tabId) {
@@ -258,7 +566,8 @@ function switchTab(tabId) {
         'dashboard': ['Dashboard', 'Visão Geral'],
         'registration': ['Inscrições', 'Gerenciamento com Ranking'],
         'groups': ['Fase de Grupos', 'Classificatórias'],
-        'bracket': ['Mata-Mata', 'Eliminatórias']
+        'bracket': ['Mata-Mata', 'Eliminatórias'],
+        'podium': ['Pódio', 'Classificação Final'], 
     };
     if(titles[tabId]) {
         document.getElementById('headerTitle').innerText = titles[tabId][0];
@@ -608,11 +917,7 @@ function finalizeGroups() {
             m1.nextId = nm.id; m2.nextId = nm.id;
             next.push(nm);
         }
-        if(r === totalRounds && prev.length === 2) {
-            let nm3 = { id: `b-r${r}-3rd`, round: r, isThirdPlace: true, p1: {name:`Perd. J${prev[0].id.split('-').pop()}`, id:null}, p2: {name:`Perd. J${prev[1].id.split('-').pop()}`, id:null}, scoreP1: null, scoreP2: null, winner: null, sources: [prev[0].id, prev[1].id], isLoserBracket: true };
-            next.push(nm3);
-        }
-        rounds.push(next);
+        
     }
     
     cat.bracket = { rounds }; cat.status = 'bracket';
@@ -813,6 +1118,20 @@ function confirmScore() {
         let p2Str = document.getElementById(`m_s${i}_p2`).value;
         if(p1Str !== '' && p2Str !== '') {
             let p1 = parseInt(p1Str), p2 = parseInt(p2Str);
+
+            // ✅ VALIDAÇÃO 1: mínimo 11 pontos
+            const maior = Math.max(p1, p2);
+            const menor = Math.min(p1, p2);
+            if(maior < 11) {
+                showToast(`❌ Set ${i}: Um dos placares deve ser no mínimo 11!`, 'error');
+                return;
+            }
+            // ✅ VALIDAÇÃO 2: diferença mínima de 2
+            if(maior - menor < 2) {
+                showToast(`❌ Set ${i}: Diferença mínima é 2 pontos! (ex: 11x9)`, 'error');
+                return;
+            }
+
             setScores.push({p1, p2});
             points1 += p1; points2 += p2;
             if(p1 > p2) setsWon1++;
@@ -820,14 +1139,12 @@ function confirmScore() {
         }
     }
 
-    // Só valida quando alguém já fechou a partida (melhora usabilidade no PC)
-if(setsWon1 < MATCH_WIN_SETS && setsWon2 < MATCH_WIN_SETS) {
-    showToast(`Faltam sets: precisa chegar em ${MATCH_WIN_SETS}.`, 'error');
-    return;
-}
-if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
+    if(setsWon1 < MATCH_WIN_SETS && setsWon2 < MATCH_WIN_SETS) {
+        showToast(`Faltam sets: precisa chegar em ${MATCH_WIN_SETS}.`, 'error');
+        return;
+    }
+    if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
 
-    
     const { m, type } = curMatch;
     m.scoreP1 = setsWon1; m.scoreP2 = setsWon2;
     m.pointsP1 = points1; m.pointsP2 = points2;
@@ -848,17 +1165,25 @@ if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return
                 nextM.winner = null; nextM.scoreP1 = null; nextM.scoreP2 = null; nextM.setScores = [];
             }
         }
-        const cat = getCurrentCategory();
-        let thirdPlaceMatch = cat.bracket.rounds[cat.bracket.rounds.length-1].find(x => x.isThirdPlace);
-        if(thirdPlaceMatch && thirdPlaceMatch.sources.includes(m.id)) {
-             if(thirdPlaceMatch.sources[0] === m.id) thirdPlaceMatch.p1 = loser;
-             else thirdPlaceMatch.p2 = loser;
-             thirdPlaceMatch.winner = null; thirdPlaceMatch.scoreP1 = null; thirdPlaceMatch.scoreP2 = null; thirdPlaceMatch.setScores = [];
-        }
+        // ✅ ITEM 3: Sem jogo de 3º lugar — os dois perdedores das semis são ambos 3º lugar
+        // (bloco do thirdPlaceMatch removido intencionalmente)
         renderBracket();
     }
-    save(); updateDashboard(); closeModal(); showToast('Placar Salvo!', 'success');
+    save(); updateDashboard();
+    
+    // ✅ ITEM 2: Fecha o modal automaticamente ao salvar
+    closeModal();
+    showToast('Placar Salvo! ✅', 'success');
+
+     if (cat.bracket && cat.bracket.rounds) {
+        const finalRound = cat.bracket.rounds[cat.bracket.rounds.length - 1];
+        const finalMatch = finalRound.find(m => !m.isThirdPlace);
+        if (finalMatch && finalMatch.winner) {
+            setTimeout(() => showPodium(), 500);
+        }
+    }
 }
+
 
 // PDF ENGINE & TOAST
 function printScoresheets(phase) {
