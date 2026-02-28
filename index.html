@@ -505,6 +505,11 @@ function updateDashboard() {
     document.getElementById('dash-total-players').innerText = totalPlayers;
     document.getElementById('dash-matches-played').innerText = matchesPlayed;
     document.getElementById('dash-status').innerText = statusMap[cat.status] || cat.status;
+
+    // --- NOVA CHAMADA PARA RENDERIZAR O PÓDIO AUTOMATICAMENTE ---
+    if (typeof showPodium === 'function') {
+        showPodium();
+    }
 }
 
 
