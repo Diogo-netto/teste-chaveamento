@@ -377,7 +377,7 @@ window.onerror = function(msg, url, line) {
 
 <script>
 
-    // ==========================================
+ // ==========================================
 // FUNÇÃO: DELETAR CATEGORIA ATUAL
 // ==========================================
 window.deleteCurrentCategory = function() {
@@ -409,7 +409,6 @@ window.deleteCurrentCategory = function() {
     switchTab('dashboard');
     showToast(`Categoria ${cat.name} apagada.`, 'success');
 };
-
 
 
 // ==========================================
@@ -489,10 +488,6 @@ function renderGlobalPlayers() {
     `).join('');
 }
 
-// Atualizar o switchTab para reconhecer a nova tela
-// Cole isso dentro do objeto 'titles' da função switchTab existente no seu código:
-// 'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'],
-
 
 function formatSetScoresTiny(setScores) {
     if(!setScores || !setScores.length) return '';
@@ -503,13 +498,13 @@ function formatSetScoresTiny(setScores) {
 // CONFIG
 const MATCH_WIN_SETS = 3;
 const STORAGE_KEY = 'altm_pro_v5_data';
-const PLAYERS_KEY = 'altm_global_players'; // <-- Coloquei a chave global aqui junto!
+const PLAYERS_KEY = 'altm_global_players'; 
 
 // STATE E BANCO DE DADOS GLOBAL
 const State = { 
     categories: [], 
     currentCategoryId: null,
-    players: [] // <-- BANCO DE DADOS DE ATLETAS DA LIGA
+    players: [] 
 };
 
 const getCurrentCategory = () => State.categories.find(c => c.id === State.currentCategoryId);
@@ -532,7 +527,6 @@ const load = () => {
     if (!State.categories.length) State.addCategory('Geral');
     if (!State.currentCategoryId) State.currentCategoryId = State.categories[0].id;
 };
-
 
 // CATEGORY MANAGER
 State.addCategory = (name) => {
@@ -560,12 +554,10 @@ function updateDashboard() {
     document.getElementById('dash-matches-played').innerText = matchesPlayed;
     document.getElementById('dash-status').innerText = statusMap[cat.status] || cat.status;
 
-    // --- NOVA CHAMADA PARA RENDERIZAR O PÓDIO AUTOMATICAMENTE ---
     if (typeof showPodium === 'function') {
         showPodium();
     }
 }
-
 
 function showPodium() {
     const cat = getCurrentCategory();
@@ -598,21 +590,14 @@ function showPodium() {
     switchTab('podium');
 }
 
-
-// INIT
-window.addEventListener('DOMContentLoaded', () => {
-    load(); renderCategorySelect(); updateDashboard(); switchTab('dashboard');
-});
-
-// INIT (mantenha apenas UM)
+// INIT (Mantido apenas UM, como você pediu)
 window.addEventListener('DOMContentLoaded', () => {
   load();
   renderCategorySelect();
-  renderGlobalPlayers();   // <- adiciona aqui
+  renderGlobalPlayers();
   updateDashboard();
   switchTab('dashboard');
 });
-
 
 // NAVIGATION
 function switchTab(tabId) {
@@ -635,6 +620,7 @@ function switchTab(tabId) {
         'groups': ['Fase de Grupos', 'Classificatórias'],
         'bracket': ['Mata-Mata', 'Eliminatórias'],
         'podium': ['Pódio', 'Classificação Final'], 
+        'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas']
     };
     if(titles[tabId]) {
         document.getElementById('headerTitle').innerText = titles[tabId][0];
@@ -920,7 +906,7 @@ ${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt
     if(btn) btn.classList.toggle('hidden', !allDone);
 }
 
-// BRACKET
+// BRACKET (AJUSTADO: Potência de 2 dinâmica, sementes olímpicas, sem jogo de 3º)
 function finalizeGroups() {
     if(!confirm('Gerar Chave Mata-Mata?')) return;
     const cat = getCurrentCategory();
@@ -933,63 +919,92 @@ function finalizeGroups() {
     
     if(qualifiers.length < 2) { showToast('Poucos classificados', 'error'); return; }
 
-    let rounds = []; let matchId = 1; let r1 = [];
+    // Calcula potência de 2 dinâmica (2, 4, 8, 16, 32...) para caber os classificados
+    let size = 2; 
+    while(size < qualifiers.length) size *= 2;
 
-    // Adalberto 3 Groups Logic
-    if(cat.groups.length === 3 && qualifiers.length === 6) {
-        let q1A = qualifiers.find(x => x.rank===1 && x.gIdx===0);
-        let q1B = qualifiers.find(x => x.rank===1 && x.gIdx===1);
-        let q1C = qualifiers.find(x => x.rank===1 && x.gIdx===2);
-        let q2A = qualifiers.find(x => x.rank===2 && x.gIdx===0);
-        let q2B = qualifiers.find(x => x.rank===2 && x.gIdx===1);
-        let q2C = qualifiers.find(x => x.rank===2 && x.gIdx===2);
+    // Ordenação do chaveamento: Primeiros cruzam com Segundos
+    qualifiers.sort((a,b) => {
+        if(a.rank !== b.rank) return a.rank - b.rank; 
+        return b.points - a.points; 
+    });
 
-        let customSeed = [ q1A, {id:'bye', name:'BYE'}, q2B, q2C, q1C, q2A, {id:'bye', name:'BYE'}, q1B ];
-
-        for(let i=0; i<8; i+=2) {
-            let p1 = customSeed[i], p2 = customSeed[i+1];
-            let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
-            if(m.p1.id==='bye' || m.p2.id==='bye') {
-                m.winner = m.p1.id!=='bye' ? m.p1 : m.p2;
-                m.scoreP1 = m.winner.id===m.p1.id ? MATCH_WIN_SETS : 0;
-                m.scoreP2 = m.winner.id===m.p2.id ? MATCH_WIN_SETS : 0;
+    // Padrão de Chaveamento Olímpico para extremidades corretas
+    const getSeedingPattern = (n) => {
+        let rounds = [1, 2];
+        for (let r = 2; r < n; r *= 2) {
+            let next = [];
+            for (let i = 0; i < rounds.length; i++) {
+                next.push(rounds[i]);
+                next.push((r * 2 + 1) - rounds[i]);
             }
-            r1.push(m);
+            rounds = next;
         }
-    } 
-    else {
-        qualifiers.sort((a,b) => a.rank - b.rank);
-        let size = 2; while(size < qualifiers.length) size *= 2;
-        for(let i=0; i<size; i+=2) {
-            const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
-            const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'}; 
-            let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
-            if(m.p1.id==='bye' || m.p2.id==='bye') {
-                m.winner = m.p1.id!=='bye' ? m.p1 : m.p2;
-                m.scoreP1 = m.winner.id===m.p1.id ? MATCH_WIN_SETS : 0;
-                m.scoreP2 = m.winner.id===m.p2.id ? MATCH_WIN_SETS : 0;
-            }
-            r1.push(m);
+        return rounds;
+    };
+
+    const pattern = getSeedingPattern(size);
+
+    let rounds = []; 
+    let matchId = 1; 
+    let r1 = [];
+
+    // Monta primeira rodada seguindo o padrão olímpico (extremidades)
+    for(let i=0; i < size/2; i++) {
+        const seed1 = pattern[i * 2] - 1;
+        const seed2 = pattern[i * 2 + 1] - 1;
+
+        const p1 = qualifiers[seed1] || {name:'BYE', id:'bye'};
+        const p2 = qualifiers[seed2] || {name:'BYE', id:'bye'}; 
+        
+        let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
+        
+        // Se enfrentar BYE, ganha automaticamente
+        if (m.p1.id === 'bye' && m.p2.id === 'bye') {
+            // jogo nulo
+        } else if (m.p1.id === 'bye') {
+            m.winner = m.p2; m.scoreP2 = MATCH_WIN_SETS; m.scoreP1 = 0;
+        } else if (m.p2.id === 'bye') {
+            m.winner = m.p1; m.scoreP1 = MATCH_WIN_SETS; m.scoreP2 = 0;
         }
+        r1.push(m);
     }
     rounds.push(r1);
 
-    let totalRounds = Math.log2(r1.length * 2);
+    // Constrói rodadas seguintes (Quartas, Semi, Final)
+    let totalRounds = Math.log2(size);
     for(let r=2; r<=totalRounds; r++) {
         let prev = rounds[rounds.length-1];
         let next = [];
         for(let i=0; i<prev.length; i+=2) {
             let m1 = prev[i], m2 = prev[i+1];
-            let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: m1.winner || {name:`Venc. J${m1.id.split('-').pop()}`, id:null}, p2: m2.winner || {name:`Venc. J${m2.id.split('-').pop()}`, id:null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
-            m1.nextId = nm.id; m2.nextId = nm.id;
+            if (!m1) m1 = { id: `ghost1`, winner: null };
+            if (!m2) m2 = { id: `ghost2`, winner: null };
+
+            let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
+            let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
+
+            let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
+            
+            // Avança o fantasma/BYE na chave de cima
+            if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) {
+                 nm.winner = m1.winner; nm.scoreP1 = MATCH_WIN_SETS; nm.scoreP2 = 0;
+            } else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) {
+                 nm.winner = m2.winner; nm.scoreP2 = MATCH_WIN_SETS; nm.scoreP1 = 0;
+            }
+
+            if (m1.id && !m1.id.startsWith('ghost')) m1.nextId = nm.id; 
+            if (m2.id && !m2.id.startsWith('ghost')) m2.nextId = nm.id;
+            
             next.push(nm);
         }
-        
+        rounds.push(next);
     }
     
     cat.bracket = { rounds }; cat.status = 'bracket';
-    save(); switchTab('bracket'); showToast('Mata-Mata Gerado!', 'success'); updateDashboard();
+    save(); switchTab('bracket'); showToast('Mata-Mata Gerado com Cruzamento Olímpico!', 'success'); updateDashboard();
 }
+
 
 function renderBracket() {
     const cat = getCurrentCategory();
@@ -1032,7 +1047,6 @@ function renderBracket() {
         </div>`;
     }).join('');
 }
-
 
 
 function generateBracketPreview() {
@@ -1121,7 +1135,6 @@ function generateBracketPreview() {
     `;
 }
 
-
 // SCORE MODAL WITH KEYBOARD SUPPORT
 let curMatch = null;
 function handleModalKey(e) { if(e.key === 'Enter') confirmScore(); }
@@ -1186,14 +1199,12 @@ function confirmScore() {
         if(p1Str !== '' && p2Str !== '') {
             let p1 = parseInt(p1Str), p2 = parseInt(p2Str);
 
-            // ✅ VALIDAÇÃO 1: mínimo 11 pontos
             const maior = Math.max(p1, p2);
             const menor = Math.min(p1, p2);
             if(maior < 11) {
                 showToast(`❌ Set ${i}: Um dos placares deve ser no mínimo 11!`, 'error');
                 return;
             }
-            // ✅ VALIDAÇÃO 2: diferença mínima de 2
             if(maior - menor < 2) {
                 showToast(`❌ Set ${i}: Diferença mínima é 2 pontos! (ex: 11x9)`, 'error');
                 return;
@@ -1232,25 +1243,21 @@ function confirmScore() {
                 nextM.winner = null; nextM.scoreP1 = null; nextM.scoreP2 = null; nextM.setScores = [];
             }
         }
-        // ✅ ITEM 3: Sem jogo de 3º lugar — os dois perdedores das semis são ambos 3º lugar
-        // (bloco do thirdPlaceMatch removido intencionalmente)
         renderBracket();
     }
     save(); updateDashboard();
     
-    // ✅ ITEM 2: Fecha o modal automaticamente ao salvar
     closeModal();
     showToast('Placar Salvo! ✅', 'success');
 
-     if (cat.bracket && cat.bracket.rounds) {
+     if (cat && cat.bracket && cat.bracket.rounds) {
         const finalRound = cat.bracket.rounds[cat.bracket.rounds.length - 1];
-        const finalMatch = finalRound.find(m => !m.isThirdPlace);
+        const finalMatch = finalRound.find(x => !x.isThirdPlace);
         if (finalMatch && finalMatch.winner) {
             setTimeout(() => showPodium(), 500);
         }
     }
 }
-
 
 // PDF ENGINE & TOAST
 function printScoresheets(phase) {
@@ -1264,22 +1271,18 @@ function printScoresheets(phase) {
             return;
         }
 
-        // Preview = 1º de um grupo vs 2º de outro (mesma lógica visual do preview)
         const firsts = cat.groups.map(g => `1º ${g.name}`);
         const seconds = cat.groups.map(g => `2º ${g.name}`);
 
-        // Gera confrontos (semifinais / primeira rodada) em branco
         for(let i=0; i<firsts.length; i++) {
             const p1 = firsts[i];
             const p2 = seconds[(seconds.length - 1 - i)] || 'BYE';
             if(p2 !== 'BYE') matchesToPrint.push({ p1, p2, info: `Mata-Mata (Preview) - Jogo ${i+1}` });
         }
 
-        // Final em branco
         matchesToPrint.push({ p1: 'Vencedor Jogo 1', p2: 'Vencedor Jogo 2', info: 'Mata-Mata (Preview) - FINAL' });
 
     } else {
-        // Bracket oficial (teu código atual)
         cat.bracket.rounds.forEach((r, idx) => {
             r.forEach(m => {
                 if(m.p1.id!=='bye' && m.p2.id!=='bye') {
@@ -1325,6 +1328,7 @@ function showToast(msg, type) {
     el.innerHTML = `<i class="fas ${type==='error'?'fa-exclamation-circle':'fa-check-circle'}"></i> ${msg}`;
     document.getElementById('toast-container').appendChild(el); setTimeout(() => el.remove(), 3000);
 }
+
 </script>
 </body>
 </html>
