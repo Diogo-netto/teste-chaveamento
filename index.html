@@ -706,29 +706,46 @@ function switchTab(tabId) {
     if(tabId === 'dashboard') updateDashboard();
     if(tabId === 'podium') renderPodium();
     
-    // ABA DE RATING
+    // ABA DE RATING - CARREGAMENTO FORÇADO
     if(tabId === 'ratingreport') {
-        renderRatingReport();
         
-        // Dá um pequeno atraso para dar tempo da tela renderizar
+        // 1. Encontra a aba específica
+        const abaRating = document.getElementById('view-ratingreport');
+        
+        if(abaRating) {
+            // Limpa todos os inputs de texto (pesquisa)
+            const inputs = abaRating.querySelectorAll('input[type="text"]');
+            inputs.forEach(input => {
+                input.value = '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            // Força a seleção do primeiro item em todos os selects (que geralmente é o "Ver Todos")
+            const selects = abaRating.querySelectorAll('select');
+            selects.forEach(select => {
+                select.selectedIndex = 0;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        }
+        
+        // 2. Chama a função principal de renderizar e passa nulo ou 'all' pra garantir
+        try { renderRatingReport(); } catch(e){}
+        try { renderRatingReport('all'); } catch(e){}
+        try { renderRatingReport(null); } catch(e){}
+        
+        // 3. O gatilho atrasado para o caso da tela demorar milissegundos para aparecer
         setTimeout(() => {
-            // Tenta achar o select de duas formas que são comuns no seu código
-            const select1 = document.getElementById('rating-player-select');
-            const select2 = document.querySelector('select[onchange="renderRatingReport()"]');
-            
-            if (select1) {
-                select1.value = 'all'; // Força a opção "Ver todos"
-                select1.dispatchEvent(new Event('change'));
-            } else if (select2) {
-                select2.value = 'all'; 
-                select2.dispatchEvent(new Event('change'));
-            } else {
-                // Se não achar o select, chama a função forçando para "todos"
-                renderRatingReport('all');
+            if(abaRating) {
+                const inputs = abaRating.querySelectorAll('input[type="text"]');
+                inputs.forEach(input => input.dispatchEvent(new Event('keyup', { bubbles: true })));
+                
+                const selects = abaRating.querySelectorAll('select');
+                selects.forEach(select => select.dispatchEvent(new Event('change', { bubbles: true })));
             }
-        }, 100);
+        }, 150);
     }
 }
+
 
 
 
