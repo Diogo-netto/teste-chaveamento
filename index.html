@@ -675,8 +675,10 @@ function switchTab(tabId) {
         el.classList.remove('border-orange-500', 'text-orange-500', 'bg-slate-800');
         el.classList.add('border-transparent', 'text-white');
     });
+    
     const view = document.getElementById(`view-${tabId}`);
     if(view) view.classList.remove('hidden');
+    
     const navBtn = document.getElementById(`nav-${tabId}`);
     if(navBtn) {
         navBtn.classList.remove('border-transparent', 'text-white');
@@ -689,8 +691,10 @@ function switchTab(tabId) {
         'groups': ['Fase de Grupos', 'Classificatórias'],
         'bracket': ['Mata-Mata', 'Eliminatórias'],
         'podium': ['Pódio', 'Classificação Final'], 
-        'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'] // ou 'ratingreport', dependendo de como você chama no HTML
+        'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'],
+        'ratingreport': ['Relatório de Rating', 'CBTM']
     };
+    
     if(titles[tabId]) {
         document.getElementById('headerTitle').innerText = titles[tabId][0];
         document.getElementById('headerSubtitle').innerText = titles[tabId][1];
@@ -701,21 +705,31 @@ function switchTab(tabId) {
     if(tabId === 'registration') renderPlayersList();
     if(tabId === 'dashboard') updateDashboard();
     if(tabId === 'podium') renderPodium();
-
-    // 👉 AJUSTE DA SUA ABA DE RELATÓRIO AQUI:
+    
+    // ABA DE RATING
     if(tabId === 'ratingreport') {
         renderRatingReport();
         
-        // Esse truque força o "Ver Todos" a carregar na mesma hora, caso o render não baste.
+        // Dá um pequeno atraso para dar tempo da tela renderizar
         setTimeout(() => {
-            // Verifica se o campo de busca de atleta existe e força a atualização
-            const selectAtleta = document.getElementById('search-athlete-rating'); // Veja se esse é o ID do seu select!
-            if (selectAtleta) {
-                selectAtleta.dispatchEvent(new Event('change'));
+            // Tenta achar o select de duas formas que são comuns no seu código
+            const select1 = document.getElementById('rating-player-select');
+            const select2 = document.querySelector('select[onchange="renderRatingReport()"]');
+            
+            if (select1) {
+                select1.value = 'all'; // Força a opção "Ver todos"
+                select1.dispatchEvent(new Event('change'));
+            } else if (select2) {
+                select2.value = 'all'; 
+                select2.dispatchEvent(new Event('change'));
+            } else {
+                // Se não achar o select, chama a função forçando para "todos"
+                renderRatingReport('all');
             }
-        }, 50);
+        }, 100);
     }
 }
+
 
 
 function toggleTVMode() { document.body.classList.toggle('tv-mode'); }
