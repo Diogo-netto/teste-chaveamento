@@ -113,37 +113,11 @@ window.onerror = function(msg, url, line) {
             <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>Torneios PRO</h1>
             <p class="text-xs text-slate-400 mt-1">Versão 5.2 </p>
         </div>
-                <!-- GERENCIADOR DE EVENTOS E CATEGORIAS -->
-        <div class="p-4 bg-slate-900 border-b border-slate-800">
-            <!-- 1. SELETOR DE EVENTO/TORNEIO -->
-            <div class="mb-4">
-                <label class="text-xs font-semibold text-orange-500 uppercase tracking-wider flex justify-between items-center">
-                    <span><i class="fas fa-trophy mr-1"></i> Evento / Etapa</span>
-                </label>
-                <div class="flex gap-2 mt-2">
-                    <select id="tournamentSelect" onchange="changeTournament()" class="flex-1 bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-orange-500 outline-none text-sm font-bold truncate">
-                        <!-- Preenchido pelo JS -->
-                    </select>
-                    <button onclick="createNewTournament()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded border border-slate-600" title="Novo Evento">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 2. SELETOR DE CATEGORIA -->
-            <div>
-                <label class="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                    <i class="fas fa-layer-group mr-1"></i> Categoria Atual
-                </label>
-                <select id="categorySelect" onchange="changeCategory()" class="w-full mt-2 bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                    <!-- Preenchido pelo JS -->
-                </select>
-                <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1.5 rounded border border-dashed border-slate-600 transition">
-                    + Nova Categoria
-                </button>
-            </div>
+        <div class="p-4">
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
+            <select id="categorySelect" onchange="changeCategory()" class="w-full mt-2 bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-orange-500 outline-none text-sm"></select>
+            <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600">+ Nova Categoria</button>
         </div>
-
         <nav class="flex-1 overflow-y-auto py-4">
             <button onclick="switchTab('ratingreport')" id="nav-ratingreport" class="nav-item w-full text-left px-4 py-3 hover:bg-slate-800 transition border-l-4 border-transparent mt-2">
     <i class="fas fa-chart-line w-4 text-purple-400"></i> Análise Ranking e Rating 
@@ -176,6 +150,7 @@ window.onerror = function(msg, url, line) {
                 <p class="text-sm text-gray-500" id="headerSubtitle">Visão geral</p>
             </div>
             <div class="flex gap-2">
+                <button onclick="toggleTVMode()" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-200" title="Modo TV/Tela Cheia"><i class="fas fa-tv"></i></button>
                 <button onclick="resetSystem()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200"><i class="fas fa-trash-alt mr-1"></i> Reset Tudo</button>
                  <button onclick="deleteCurrentCategory()" class="bg-red-50 text-red-500 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100" title="Apagar a Categoria Atual">
         <i class="fas fa-trash"></i> Apagar Categoria
@@ -487,207 +462,45 @@ function formatSetScoresTiny(setScores) {
 }
 
 
-// ==========================================
-// CONFIGURAÇÕES E BANCO DE DADOS
-// ==========================================
+// CONFIG
 const MATCH_WIN_SETS = 3;
-const STORAGE_KEY = 'altm_pro_v6_data'; // Nova chave para não subscrever o antigo por engano
+const STORAGE_KEY = 'altm_pro_v5_data';
+const PLAYERS_KEY = 'altm_global_players'; 
 
-const State = {
-    tournaments: [],
-    currentTournamentId: null,
-    currentCategoryId: null
+// STATE E BANCO DE DADOS GLOBAL
+const State = { 
+    categories: [], 
+    currentCategoryId: null,
+    players: [] 
 };
 
-// Funções de Busca
-const getCurrentTournament = () => {
-    if (!State.tournaments) return null;
-    return State.tournaments.find(t => t.id === State.currentTournamentId);
+const getCurrentCategory = () => State.categories.find(c => c.id === State.currentCategoryId);
+
+const save = () => { 
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(State.categories)); 
+    localStorage.setItem(PLAYERS_KEY, JSON.stringify(State.players)); 
 };
 
-const getCurrentCategory = () => {
-    const t = getCurrentTournament();
-    if (!t || !t.categories) return null;
-    return t.categories.find(c => c.id === State.currentCategoryId);
-};
-
-// Salvamento
-const save = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(State));
-};
-
-// Carregamento e Migração Segura
 const load = () => {
     try {
         const data = localStorage.getItem(STORAGE_KEY);
-        if (data) {
-            Object.assign(State, JSON.parse(data));
-        } else {
-            // Lógica de Migração Segura: Pega os dados do seu sistema antigo
-            const oldData = localStorage.getItem('altm_pro_v5_data');
-            let migratedCategories = [];
-            
-            if (oldData) {
-                const parsedOld = JSON.parse(oldData);
-                // Se era array de categorias, salva elas
-                if (Array.isArray(parsedOld)) migratedCategories = parsedOld;
-                else if (parsedOld.categories) migratedCategories = parsedOld.categories;
-            }
+        if (data) State.categories = JSON.parse(data);
 
-            // Cria o torneio antigo e joga as coisas dentro
-            if (migratedCategories.length > 0) {
-                const tId = 't-' + Date.now();
-                State.tournaments.push({
-                    id: tId,
-                    name: 'Torneios Anteriores',
-                    categories: migratedCategories
-                });
-                State.currentTournamentId = tId;
-                State.currentCategoryId = migratedCategories[0].id;
-                save();
-            }
-        }
-    } catch(e) { console.error("Erro ao carregar:", e); }
+        const playersData = localStorage.getItem(PLAYERS_KEY);
+        if (playersData) State.players = JSON.parse(playersData);
 
-    // Se estiver vazio mesmo depois de tentar migrar
-    if (!State.tournaments || State.tournaments.length === 0) {
-        addTournament('1º Evento Teste');
-    }
-
-    // Após carregar, desenha a tela
-    renderTournamentSelect();
-    renderCategorySelect();
-    updateDashboard();
+    } catch(e) { console.error(e); }
+    
+    if (!State.categories.length) State.addCategory('Geral');
+    if (!State.currentCategoryId) State.currentCategoryId = State.categories[0].id;
 };
 
-// ==========================================
-// GERENCIADORES DE TORNEIOS E CATEGORIAS
-// ==========================================
-
-function addTournament(name) {
-    const id = 't-' + Date.now().toString();
-    State.tournaments.push({
-        id: id,
-        name: name,
-        categories: []
-    });
-    State.currentTournamentId = id;
-    addCategory('Geral', id); // Nasce com uma categoria padrão
-    return id;
-}
-
-function createNewTournament() {
-    const name = prompt('Nome do Novo Torneio/Evento:');
-    if (name && name.trim()) {
-        addTournament(name.trim());
-        renderTournamentSelect();
-        renderCategorySelect();
-        switchTab('dashboard');
-        showToast('Novo Torneio criado com sucesso!', 'success');
-    }
-}
-
-function changeTournament() {
-    State.currentTournamentId = document.getElementById('tournamentSelect').value;
-    const t = getCurrentTournament();
-    
-    // Ao mudar o torneio, muda a categoria para a primeira que ele tiver
-    if (t && t.categories.length > 0) {
-        State.currentCategoryId = t.categories[0].id;
-    } else {
-        State.currentCategoryId = null;
-    }
-    
-    save();
-    renderCategorySelect();
-    switchTab('dashboard');
-}
-
-function renderTournamentSelect() {
-    const select = document.getElementById('tournamentSelect');
-    if(!select) return;
-    
-    select.innerHTML = State.tournaments.map(t => {
-        return `<option value="${t.id}" ${t.id === State.currentTournamentId ? 'selected' : ''}>${t.name}</option>`;
-    }).join('');
-}
-
-// ------------------------------------------
-
-function addCategory(name, tournamentId) {
-    const tId = tournamentId || State.currentTournamentId;
-    const t = State.tournaments.find(x => x.id === tId);
-    if(!t) return;
-
-    if(!t.categories) t.categories = [];
-
-    const id = 'c-' + Date.now().toString();
-    t.categories.push({
-        id: id,
-        name: name,
-        players: [],
-        groups: [],
-        matches: [],
-        bracket: null,
-        status: 'registration'
-    });
-    
-    // Força a mudança imediata para a categoria nova criada
-    State.currentCategoryId = id;
-    
-    save();
-    return id;
-}
-
-function addNewCategory() {
-    // 1. Verifica se tem algum Torneio/Evento selecionado primeiro
-    const t = getCurrentTournament();
-    if (!t) {
-        alert("Por favor, crie ou selecione um Evento/Etapa primeiro antes de criar uma Categoria.");
-        return;
-    }
-
-    const name = prompt('Nome da Nova Categoria:');
-    if(name && name.trim()) {
-        addCategory(name.trim(), t.id);
-        
-        // 2. O Segredo: re-renderiza TUDO para aparecer na tela na hora
-        renderTournamentSelect(); 
-        renderCategorySelect();
-        
-        // 3. Força o select a mostrar a que acabou de ser criada
-        document.getElementById('categorySelect').value = State.currentCategoryId;
-        
-        switchTab('registration');
-        showToast('Categoria criada!', 'success');
-    }
-}
-
-
-function changeCategory() {
-    State.currentCategoryId = document.getElementById('categorySelect').value;
-    save();
-    switchTab('dashboard');
-}
-
-function renderCategorySelect() {
-    const select = document.getElementById('categorySelect');
-    if(!select) return;
-    
-    const t = getCurrentTournament();
-    if (!t || !t.categories || t.categories.length === 0) {
-        select.innerHTML = `<option value="">Nenhuma Categoria</option>`;
-        return;
-    }
-
-    select.innerHTML = t.categories.map(c => {
-        return `<option value="${c.id}" ${c.id === State.currentCategoryId ? 'selected' : ''}>${c.name}</option>`;
-    }).join('');
-}
-
-// Inicializa o sistema quando o HTML terminar de carregar
-window.addEventListener('DOMContentLoaded', load);
-
+// CATEGORY MANAGER
+State.addCategory = (name) => {
+    const id = Date.now().toString();
+    State.categories.push({ id, name, players: [], groups: [], matches: [], bracket: null, status: 'registration' });
+    save(); return id;
+};
 
 function updateDashboard() {
     const cat = getCurrentCategory();
@@ -1780,50 +1593,20 @@ function renderRatingReport() {
         container.querySelector('.bg-white').insertBefore(filterDiv, tableWrapper);
     }
 
-       // Desenha a barra de pesquisa e o Select juntos
     filterDiv.innerHTML = `
         <div class="flex-1">
-            <label class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1 block">
-                <i class="fas fa-search text-purple-500"></i> Buscar Histórico do Atleta
-            </label>
-            <div class="flex gap-2">
-                <input type="text" id="playerRatingSearch" placeholder="Digite o nome do atleta..." 
-                       class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                       onkeyup="filterRatingSelect(this.value)">
-                
-                <select id="playerRatingSelect" onchange="updatePlayerRatingExtract()" 
-                        class="w-64 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-medium bg-gray-50">
-                    <option value="ALL">📋 Ver Todos (Geral)</option>
-                    ${cat.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                </select>
-            </div>
+            <label class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1 block">Extrato do Atleta</label>
+            <select id="playerRatingSelect" onchange="updatePlayerRatingExtract()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-medium">
+                <option value="ALL">📋 Ver Todos (Ranking Geral)</option>
+                ${cat.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            </select>
+        </div>
+        <div class="text-sm text-gray-500 pb-3">
+            <i class="fas fa-info-circle text-purple-500"></i> Selecione um atleta para ver os jogos
         </div>
     `;
 
-    // Função auxiliar para filtrar o Select enquanto a pessoa digita
-    window.filterRatingSelect = function(termo) {
-        const select = document.getElementById('playerRatingSelect');
-        const termoMin = termo.toLowerCase();
-        
-        Array.from(select.options).forEach(opt => {
-            if (opt.value === 'ALL') return; // Nunca esconde a opção "Ver Todos"
-            const nome = opt.text.toLowerCase();
-            opt.style.display = nome.includes(termoMin) ? '' : 'none';
-        });
-
-        // Se digitou algo e só sobrou 1 pessoa, seleciona ela automaticamente
-        const visiveis = Array.from(select.options).filter(opt => opt.style.display !== 'none' && opt.value !== 'ALL');
-        if (termo.length > 2 && visiveis.length === 1) {
-            select.value = visiveis[0].value;
-            updatePlayerRatingExtract();
-        } else if (termo === '') {
-            select.value = 'ALL';
-            updatePlayerRatingExtract();
-        }
-    };
-
-
-    
+    updatePlayerRatingExtract();
 }
 
 window.updatePlayerRatingExtract = function() {
