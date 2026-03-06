@@ -220,7 +220,7 @@ window.onerror = function(msg, url, line) {
                 <button onclick="printScoresheets('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas</button>
                 <button onclick="printReport('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Relatório</button>
             </div>
-            <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Desempate Automático CBTM.</div>
+            <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Desempate Automático </div>
         </div>
         <div id="groupsContainer" class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20"></div>
         <div id="finishGroupsBtn" class="fixed bottom-8 right-8 hidden no-print">
@@ -312,7 +312,7 @@ window.onerror = function(msg, url, line) {
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-chart-line text-purple-600 mr-2"></i> Relatório de Rating (CBTM)
+                    <i class="fas fa-chart-line text-purple-600 mr-2"></i> Relatório de Rating 
                 </h2>
                 <button onclick="window.print()" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow">
                     <i class="fas fa-print mr-2"></i> Imprimir
@@ -689,7 +689,7 @@ function switchTab(tabId) {
         'groups': ['Fase de Grupos', 'Classificatórias'],
         'bracket': ['Mata-Mata', 'Eliminatórias'],
         'podium': ['Pódio', 'Classificação Final'], 
-        'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas']
+        'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'] // ou 'ratingreport', dependendo de como você chama no HTML
     };
     if(titles[tabId]) {
         document.getElementById('headerTitle').innerText = titles[tabId][0];
@@ -700,9 +700,23 @@ function switchTab(tabId) {
     if(tabId === 'bracket') renderBracket();
     if(tabId === 'registration') renderPlayersList();
     if(tabId === 'dashboard') updateDashboard();
-     if(tabId === 'ratingreport') renderRatingReport();
-      if(tabId === 'podium') renderPodium();
+    if(tabId === 'podium') renderPodium();
+
+    // 👉 AJUSTE DA SUA ABA DE RELATÓRIO AQUI:
+    if(tabId === 'ratingreport') {
+        renderRatingReport();
+        
+        // Esse truque força o "Ver Todos" a carregar na mesma hora, caso o render não baste.
+        setTimeout(() => {
+            // Verifica se o campo de busca de atleta existe e força a atualização
+            const selectAtleta = document.getElementById('search-athlete-rating'); // Veja se esse é o ID do seu select!
+            if (selectAtleta) {
+                selectAtleta.dispatchEvent(new Event('change'));
+            }
+        }, 50);
+    }
 }
+
 
 function toggleTVMode() { document.body.classList.toggle('tv-mode'); }
 
