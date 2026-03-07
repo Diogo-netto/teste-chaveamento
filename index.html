@@ -1793,24 +1793,51 @@ function renderPodium() {
         const loserName = (finalMatch.winner.id === finalMatch.p1.id) ? finalMatch.p2.name : finalMatch.p1.name;
         document.getElementById('podium-2nd').innerText = loserName;
         
-        // 3º Lugares (Os dois perdedores da Semi-Final)
+        // --- LÓGICA DO 3º LUGAR ---
+        let semiLoser1 = '---';
+        let semiLoser2 = '---';
+
+        // 1. Tenta achar os perdedores pelas semifinais (se existirem)
         if (rounds.length > 1) {
             const semiFinals = rounds[rounds.length - 2];
             let semiLosers = [];
             
             semiFinals.forEach(m => {
                 if (m.winner) {
-                    // Pega o nome do perdedor daquela semi-final
                     semiLosers.push(m.winner.id === m.p1.id ? m.p2.name : m.p1.name);
                 }
             });
             
-            document.getElementById('podium-3rd-a').innerText = semiLosers[0] || '---';
-            document.getElementById('podium-3rd-b').innerText = semiLosers[1] || '---';
-        } else {
-             document.getElementById('podium-3rd-a').innerText = '---';
-             document.getElementById('podium-3rd-b').innerText = '---';
+            semiLoser1 = semiLosers[0] || '---';
+            semiLoser2 = semiLosers[1] || '---';
+        } 
+        // 2. Se a categoria foi "Direto pra Final" de um grupo só (4 atletas)
+        else if (cat.groups && cat.groups.length === 1 && cat.groups[0].players) {
+            // Pega todos os jogadores do grupo
+            const groupPlayers = cat.groups[0].players;
+            
+            // Ordena os jogadores pelos pontos do grupo (maior para o menor)
+            // Se o seu código tiver critério de desempate, ele deve ser aplicado aqui no futuro
+            const sortedPlayers = [...groupPlayers].sort((a, b) => (b.points || 0) - (a.points || 0));
+            
+            // Pega o 3º e o 4º colocado do grupo
+            if (sortedPlayers.length >= 3) semiLoser1 = sortedPlayers[2].name;
+            if (sortedPlayers.length >= 4) semiLoser2 = sortedPlayers[3].name;
         }
+        
+        // 3. Se forem 2 grupos classificando direto pra final (1º de cada)
+        else if (cat.groups && cat.groups.length === 2) {
+            const groupA = [...cat.groups[0].players].sort((a, b) => (b.points || 0) - (a.points || 0));
+            const groupB = [...cat.groups[1].players].sort((a, b) => (b.points || 0) - (a.points || 0));
+            
+            if (groupA.length >= 2) semiLoser1 = groupA[1].name; // 2º do Grupo A
+            if (groupB.length >= 2) semiLoser2 = groupB[1].name; // 2º do Grupo B
+        }
+
+        // Imprime na tela
+        document.getElementById('podium-3rd-a').innerText = semiLoser1;
+        document.getElementById('podium-3rd-b').innerText = semiLoser2;
+
     } else {
         // Se a final não acabou ainda
         document.getElementById('podium-1st').innerText = 'Aguardando...';
@@ -1819,6 +1846,7 @@ function renderPodium() {
         document.getElementById('podium-3rd-b').innerText = '---';
     }
 }
+
 
 
 </script>
