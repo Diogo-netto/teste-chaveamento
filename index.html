@@ -1430,7 +1430,7 @@ function confirmScore() {
         renderBracket();
     }
 
-    // =======================================================
+        // =======================================================
     // INÍCIO DA CALCULADORA DE RATING (PADRÃO TMB)
     // =======================================================
     const cat = getCurrentCategory();
@@ -1448,33 +1448,34 @@ function confirmScore() {
 
         function getCBTMRatingChange(ratingWinner, ratingLoser) {
             const diff = ratingWinner - ratingLoser;
-            let winPoints = 0; let losePoints = 0;
+            let winPoints = 0; 
+            let losePoints = 0;
             
+            // SE O VENCEDOR ERA O FAVORITO (Diferença positiva)
             if (diff >= 0) {
-                if (diff <= 12) { winPoints = 8; losePoints = 8; }
-                else if (diff <= 37) { winPoints = 7; losePoints = 7; }
-                else if (diff <= 62) { winPoints = 6; losePoints = 6; }
-                else if (diff <= 87) { winPoints = 5; losePoints = 5; }
-                else if (diff <= 112) { winPoints = 4; losePoints = 4; }
-                else if (diff <= 137) { winPoints = 3; losePoints = 3; }
-                else if (diff <= 162) { winPoints = 2; losePoints = 2; }
-                else if (diff <= 187) { winPoints = 2; losePoints = 1; }
-                else if (diff <= 212) { winPoints = 1; losePoints = 1; }
-                else if (diff <= 237) { winPoints = 1; losePoints = 0; }
-                else { winPoints = 0; losePoints = 0; }
-            } else {
-                const absDiff = Math.abs(diff);
-                if (absDiff <= 12) { winPoints = 8; losePoints = 8; }
-                else if (absDiff <= 37) { winPoints = 10; losePoints = 10; }
-                else if (absDiff <= 62) { winPoints = 13; losePoints = 13; }
-                else if (absDiff <= 87) { winPoints = 16; losePoints = 16; }
-                else if (absDiff <= 112) { winPoints = 20; losePoints = 20; }
-                else if (absDiff <= 137) { winPoints = 25; losePoints = 25; }
-                else if (absDiff <= 162) { winPoints = 30; losePoints = 30; }
-                else if (absDiff <= 187) { winPoints = 35; losePoints = 35; }
-                else if (absDiff <= 212) { winPoints = 40; losePoints = 40; }
-                else if (absDiff <= 237) { winPoints = 45; losePoints = 45; }
-                else { winPoints = 50; losePoints = 50; }
+                if (diff >= 750) { winPoints = 1; losePoints = 1; }
+                else if (diff >= 500) { winPoints = 2; losePoints = 2; }
+                else if (diff >= 400) { winPoints = 3; losePoints = 3; }
+                else if (diff >= 300) { winPoints = 4; losePoints = 4; }
+                else if (diff >= 200) { winPoints = 5; losePoints = 5; }
+                else if (diff >= 150) { winPoints = 6; losePoints = 6; }
+                else if (diff >= 100) { winPoints = 7; losePoints = 7; }
+                else if (diff >= 50) { winPoints = 8; losePoints = 8; }
+                else if (diff >= 25) { winPoints = 9; losePoints = 9; }
+                else { winPoints = 10; losePoints = 10; }
+            } 
+            // SE O VENCEDOR ERA O AZARÃO (Diferença negativa)
+            else {
+                const absDiff = Math.abs(diff); 
+                if (absDiff >= 500) { winPoints = 30; losePoints = 30; } 
+                else if (absDiff >= 400) { winPoints = 26; losePoints = 26; }
+                else if (absDiff >= 300) { winPoints = 23; losePoints = 23; }
+                else if (absDiff >= 200) { winPoints = 20; losePoints = 20; }
+                else if (absDiff >= 150) { winPoints = 18; losePoints = 18; }
+                else if (absDiff >= 100) { winPoints = 16; losePoints = 16; }
+                else if (absDiff >= 50) { winPoints = 14; losePoints = 14; }
+                else if (absDiff >= 25) { winPoints = 12; losePoints = 12; }
+                else { winPoints = 11; losePoints = 11; }
             }
             return { winPoints, losePoints };
         }
@@ -1511,6 +1512,7 @@ function confirmScore() {
     // =======================================================
     // FIM DA CALCULADORA DE RATING
     // =======================================================
+
 
     save();
     updateDashboard();
