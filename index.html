@@ -1028,22 +1028,17 @@ function generateGroups() {
     if (cat.players.length < 3) { showToast('Mínimo 3 atletas!', 'error'); return; }
     if (cat.groups && cat.groups.length > 0 && !confirm('Refazer sorteio? Isso apagará os jogos atuais.')) return;
 
-    // 1. CÁLCULO DE GRUPOS: PRIORIZA GRUPOS DE 3 PESSOAS PARA NÃO TER JOGO DEMAIS
-    // Quantos grupos de 3 eu consigo fazer?
+    // 1. CÁLCULO DE GRUPOS: PRIORIZA GRUPOS DE 3 PESSOAS
     let numGroups = Math.floor(cat.players.length / 3);
-    
-    // Se sobrar 1 ou 2 pessoas, eles entram como 4º membro em alguns grupos (ex: 10 atletas = dois de 3 e um de 4)
-    if (numGroups === 0) numGroups = 1; // Proteção mínima
+    if (numGroups === 0) numGroups = 1;
 
-    // 2. ORDENAÇÃO: PEGA DO MAIOR RANKING PRO MENOR (Cabeças de Chave no topo)
-    // Usa pointsRating (rating atualizado) ou points (se não tiver)
+    // 2. ORDENAÇÃO: PEGA DO MAIOR RANKING PRO MENOR
     let pool = [...cat.players].sort((a, b) => {
         let ptsA = a.pointsRating !== undefined ? a.pointsRating : (a.points || 0);
         let ptsB = b.pointsRating !== undefined ? b.pointsRating : (b.points || 0);
         return ptsB - ptsA; 
     });
     
-    // Cria as caixinhas dos Grupos (Grupo A, Grupo B, Grupo C...)
     cat.groups = Array.from({length: numGroups}, (_, i) => ({ 
         id: i + 1, 
         name: `Grupo ${String.fromCharCode(65 + i)}`, 
@@ -1051,29 +1046,31 @@ function generateGroups() {
     }));
     
     // 3. SEPARAÇÃO BLINDADA DOS CABEÇAS DE CHAVE
-    // O Top 1 vai pro A, Top 2 pro B, Top 3 pro C... e aí acabou os cabeças.
     for (let i = 0; i < numGroups; i++) {
         if (pool.length > 0) {
-            cat.groups[i].players.push(pool.shift()); // Pega o primeiro da fila (mais forte) e tira da lista
+            cat.groups[i].players.push(pool.shift()); 
         }
     }
 
-    // 4. DISTRIBUI O RESTO DA GALERA COM A LÓGICA "SNAKE" (Serpentina de ida e volta)
-    // Agora o pool só tem os jogadores "fracos" que sobraram.
-    let direction = -1; // Começa voltando (do grupo C pro A) para equilibrar a força
+    // 4. DISTRIBUI O RESTO DA GALERA COM A LÓGICA "SNAKE" CORRIGIDA
+    let direction = -1; 
     let currentGroupIdx = numGroups - 1;
 
     while (pool.length > 0) {
         cat.groups[currentGroupIdx].players.push(pool.shift());
 
-        // Movimento da serpentina (vai pro próximo grupo ou inverte a direção se bater na parede)
+        // Se só tem 1 grupo, não precisa de snake
+        if (numGroups === 1) continue;
+
         currentGroupIdx += direction;
         
+        // Correção do Snake: quando bate na parede, inverte a direção mas repete o grupo
+        // para manter o formato serpentina correto (ex: C, B, A, A, B, C, C, B, A)
         if (currentGroupIdx < 0) {
-            direction = 1; // Bateu no Grupo A, agora vai pro B
+            direction = 1; 
             currentGroupIdx = 0;
         } else if (currentGroupIdx >= numGroups) {
-            direction = -1; // Bateu no último grupo, agora volta
+            direction = -1; 
             currentGroupIdx = numGroups - 1;
         }
     }
@@ -1087,6 +1084,7 @@ function generateGroups() {
     showToast('Grupos Sorteados (Grupos de 3 com Cabeças de Chave)!', 'success'); 
     if(typeof updateDashboard === 'function') updateDashboard();
 }
+
 
 
 // EDIT GROUPS MODAL
