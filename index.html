@@ -1034,30 +1034,31 @@ function generateGroups() {
     // 2. ORDENAÇÃO INTELIGENTE (RATING -> RANKING -> ORDEM DE INSCRIÇÃO)
     let pool = cat.players.map((p, index) => ({ ...p, _originalIndex: index }));
 
-    pool.sort((a, b) => {
-        // Tenta pegar o Rating primeiro. Se não existir, vira 0.
-        let ratingA = parseFloat(a.pointsRating || 0);
-        let ratingB = parseFloat(b.pointsRating || 0);
+        pool.sort((a, b) => {
+        // Pega o Rating (se não achar, vira 0)
+        let ratingA = parseFloat(a.pointsRating) || parseFloat(a.rating) || 0;
+        let ratingB = parseFloat(b.pointsRating) || parseFloat(b.rating) || 0;
         
-        // Pega o Ranking. Se não existir, vira 0.
-        let rankingA = parseFloat(a.points || 0);
-        let rankingB = parseFloat(b.points || 0);
+        // Pega o Ranking caçando todos os nomes possíveis no seu banco de dados
+        let rankingA = parseFloat(a.points) || parseFloat(a.ranking) || parseFloat(a.pointsRanking) || parseFloat(a.score) || 0;
+        let rankingB = parseFloat(b.points) || parseFloat(b.ranking) || parseFloat(b.pointsRanking) || parseFloat(b.score) || 0;
 
-        // REGRA 1: Se estiverem usando Rating (algum deles é maior que 0), usa Rating.
+        // REGRA 1: Se estiverem usando Rating (algum deles é maior que 0)
         if (ratingA > 0 || ratingB > 0) {
             if (ratingB !== ratingA) {
                 return ratingB - ratingA; // Do maior pro menor Rating
             }
         }
         
-        // REGRA 2: Se não tem Rating ou deu empate no Rating, cai pro Ranking
+        // REGRA 2: Se não tem Rating, vai pro Ranking (Ex: Pedro 240 vs Bruno 160)
         if (rankingB !== rankingA) {
             return rankingB - rankingA; // Do maior pro menor Ranking
         }
         
-        // REGRA 3: Se empatar até no Ranking (ex: os dois têm 0), mantém a ordem da tela
+        // REGRA 3: Desempate final (Mantém ordem da tela)
         return a._originalIndex - b._originalIndex;
     });
+
 
     pool = pool.map(p => { 
         let temp = {...p}; 
