@@ -1352,37 +1352,59 @@ function renderBracket() {
 
 function generateBracketPreview() {
     const cat = getCurrentCategory();
-    const numGroups = cat.groups.length;
+    const numGroups = cat.groups && cat.groups.length ? cat.groups.length : 0;
     
-    let qualifiers = [];
-    cat.groups.forEach((g, idx) => {
-        qualifiers.push({name: `1º ${g.name}`, id: `preview-${idx}-1`, rank: 1});
-        qualifiers.push({name: `2º ${g.name}`, id: `preview-${idx}-2`, rank: 2});
-    });
-    
-    // Determina tamanho da chave
-    let size = 2;
-    while(size < qualifiers.length) size *= 2;
-    
-    // Monta primeira rodada (PREVIEW)
+    if (numGroups === 0) return `<p>Sorteie os grupos primeiro.</p>`;
+
     let matches = [];
-    for(let i = 0; i < size; i += 2) {
-        const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
-        const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'};
-        
+    
+    // REGRA EXCLUSIVA PARA 3 GRUPOS (Chave de 6 com 2 BYEs)
+    if (numGroups === 3) {
+        // As Quartas de Final de 3 grupos exigem posições fixas para não cruzar pessoas do mesmo grupo.
         matches.push({
-            p1: p1,
-            p2: p2,
-            id: `preview-${i}`,
-            scoreP1: null,
-            scoreP2: null,
-            winner: null
+            p1: { name: `1º Grupo A`, id: `preview-0-1`, rank: 1 },
+            p2: { name: `BYE`, id: `bye` },
+            id: `preview-0`
         });
+        matches.push({
+            p1: { name: `2º Grupo B`, id: `preview-1-2`, rank: 2 },
+            p2: { name: `2º Grupo C`, id: `preview-2-2`, rank: 2 },
+            id: `preview-1`
+        });
+        matches.push({
+            p1: { name: `1º Grupo C`, id: `preview-2-1`, rank: 1 },
+            p2: { name: `2º Grupo A`, id: `preview-0-2`, rank: 2 },
+            id: `preview-2`
+        });
+        matches.push({
+            p1: { name: `BYE`, id: `bye` },
+            p2: { name: `1º Grupo B`, id: `preview-1-1`, rank: 1 },
+            id: `preview-3`
+        });
+    } else {
+        // SE FOR OUTRA QUANTIDADE DE GRUPOS, USA A LÓGICA PADRÃO (Genérica)
+        let qualifiers = [];
+        cat.groups.forEach((g, idx) => {
+            qualifiers.push({name: `1º ${g.name}`, id: `preview-${idx}-1`, rank: 1});
+            qualifiers.push({name: `2º ${g.name}`, id: `preview-${idx}-2`, rank: 2});
+        });
+        
+        let size = 2;
+        while(size < qualifiers.length) size *= 2;
+        
+        for(let i = 0; i < size; i += 2) {
+            const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
+            const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'};
+            
+            matches.push({
+                p1: p1, p2: p2, id: `preview-${i}`
+            });
+        }
     }
     
-    // Monta rodadas subsequentes
+    // Monta rodadas subsequentes (Semifinal e Final)
     let rounds = [matches];
-    let totalRounds = Math.log2(size);
+    let totalRounds = Math.log2(matches.length * 2);
     
     for(let r = 2; r <= totalRounds; r++) {
         let prev = rounds[rounds.length-1];
@@ -1391,10 +1413,7 @@ function generateBracketPreview() {
             next.push({
                 p1: {name: `Venc. J${prev[i].id.split('-').pop()}`, id: null},
                 p2: {name: `Venc. J${prev[i+1].id.split('-').pop()}`, id: null},
-                id: `preview-r${r}-${i}`,
-                scoreP1: null,
-                scoreP2: null,
-                winner: null
+                id: `preview-r${r}-${i}`
             });
         }
         rounds.push(next);
@@ -1405,27 +1424,21 @@ function generateBracketPreview() {
         <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
             <p class="text-sm text-yellow-800">
                 <i class="fas fa-eye mr-2"></i>
-                <strong>PREVIEW:</strong> Esta é uma visualização do mata-mata. 
-                Complete os grupos e clique em "Gerar Mata-Mata" para efetivar.
+                <strong>PREVIEW:</strong> Chaveamento fixo de 3 grupos (CBTM).
             </p>
         </div>
         ${rounds.map((r, i) => {
-            // Nomenclatura dinâmica
             const roundsLeft = rounds.length - i;
             let name = `Rodada ${i+1}`;
             if (roundsLeft === 1) name = 'FINAL';
             else if (roundsLeft === 2) name = 'SEMIFINAL';
             else if (roundsLeft === 3) name = 'QUARTAS DE FINAL';
-            else if (roundsLeft === 4) name = 'OITAVAS DE FINAL';
-            else if (roundsLeft === 5) name = '16 AVOS DE FINAL';
-            else if (roundsLeft === 6) name = '32 AVOS DE FINAL';
 
             return `
             <div class="round-column">
                 <h3 class="text-center font-bold text-orange-600 mb-2 text-sm">${name}</h3>
                 <div class="flex flex-col justify-around flex-1">
                     ${r.map(m => {
-                        const isBye = m.p1.id === 'bye' || m.p2.id === 'bye';
                         return `
                         <div class="match-card pending opacity-60 cursor-default" style="border-left-color: #fbbf24;">
                             <div class="flex justify-between mb-1">
@@ -1444,6 +1457,7 @@ function generateBracketPreview() {
         }).join('')}
     `;
 }
+
 
 
 // SCORE MODAL WITH KEYBOARD SUPPORT
