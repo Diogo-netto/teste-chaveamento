@@ -1667,19 +1667,17 @@ function printScoresheets(phase) {
     const cat = getCurrentCategory();
     let matchesToPrint = [];
 
-    // SE A FASE FOR 'groups', VAMOS IMPRIMIR OS JOGOS DA FASE DE GRUPOS
+    // SE A FASE FOR 'groups', VAMOS IMPRIMIR OS JOGOS REAIS DA FASE DE GRUPOS
     if (phase === 'groups') {
         if (!cat.matches || cat.matches.length === 0) {
             showToast('Nenhum jogo de grupo encontrado.', 'error');
             return;
         }
 
-        // Pega todos os jogos da fase de grupos
         cat.matches.forEach(m => {
             if (m.p1Id !== 'bye' && m.p2Id !== 'bye') {
                 const p1Name = cat.players.find(p => p.id === m.p1Id)?.name || 'Desconhecido';
                 const p2Name = cat.players.find(p => p.id === m.p2Id)?.name || 'Desconhecido';
-                // Acha de qual grupo é a partida (Ex: Grupo A)
                 const groupName = cat.groups.find(g => g.id === m.groupId)?.name || 'Grupo';
                 
                 matchesToPrint.push({ 
@@ -1692,29 +1690,50 @@ function printScoresheets(phase) {
     } 
     // SE A FASE FOR 'bracket' (MATA-MATA)
     else if (phase === 'bracket') {
+        
+        // Se a chave AINDA NÃO FOI SORTEADA no sistema, fazemos um PREVIEW genérico!
         if (!cat.bracket || !cat.bracket.rounds || cat.bracket.rounds.length === 0) {
-            showToast('Sorteie o mata-mata primeiro.', 'error');
-            return;
-        }
+            
+            if(!cat.groups || cat.groups.length === 0) {
+                showToast('É necessário ter grupos para gerar o Preview.', 'error');
+                return;
+            }
 
-        cat.bracket.rounds.forEach((r, idx) => {
-            const roundsLeft = cat.bracket.rounds.length - idx;
-            let faseNome = `Rodada ${idx+1}`;
-            if (roundsLeft === 1) faseNome = 'Final';
-            else if (roundsLeft === 2) faseNome = 'Semifinal';
-            else if (roundsLeft === 3) faseNome = 'Quartas de Final';
-            else if (roundsLeft === 4) faseNome = 'Oitavas de Final';
-            else if (roundsLeft === 5) faseNome = '16 Avos';
-            else if (roundsLeft === 6) faseNome = '32 Avos';
+            // Cria um cruzamento fictício: 1º do A x 2º do C, etc...
+            const firsts = cat.groups.map(g => `1º ${g.name}`);
+            const seconds = cat.groups.map(g => `2º ${g.name}`);
 
-            r.forEach(m => {
-                if (m.p1.id !== 'bye' && m.p2.id !== 'bye') {
-                    let jogoNum = m.id.split('-').pop().replace('3rd', '3º');
-                    let infoStr = `${faseNome} - Jogo ${jogoNum}`;
-                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
-                }
+            for(let i = 0; i < firsts.length; i++) {
+                const p1 = firsts[i];
+                const p2 = seconds[(seconds.length - 1 - i)] || '___________________';
+                matchesToPrint.push({ p1, p2, info: `Mata-Mata (Chaveamento) - Jogo ${i+1}` });
+            }
+
+            // Adiciona uma súmula em branco extra para Semifinal/Final
+            matchesToPrint.push({ p1: 'Vencedor Jogo 1', p2: 'Vencedor Jogo 2', info: 'Mata-Mata - Fase Seguinte' });
+            matchesToPrint.push({ p1: 'Vencedor Jogo 3', p2: 'Vencedor Jogo 4', info: 'Mata-Mata - Fase Seguinte' });
+
+        } else {
+            // SE A CHAVE JÁ FOI SORTEADA no sistema, imprime os nomes reais
+            cat.bracket.rounds.forEach((r, idx) => {
+                const roundsLeft = cat.bracket.rounds.length - idx;
+                let faseNome = `Rodada ${idx+1}`;
+                if (roundsLeft === 1) faseNome = 'Final';
+                else if (roundsLeft === 2) faseNome = 'Semifinal';
+                else if (roundsLeft === 3) faseNome = 'Quartas de Final';
+                else if (roundsLeft === 4) faseNome = 'Oitavas de Final';
+                else if (roundsLeft === 5) faseNome = '16 Avos';
+                else if (roundsLeft === 6) faseNome = '32 Avos';
+
+                r.forEach(m => {
+                    if (m.p1.id !== 'bye' && m.p2.id !== 'bye') {
+                        let jogoNum = m.id.split('-').pop().replace('3rd', '3º');
+                        let infoStr = `${faseNome} - Jogo ${jogoNum}`;
+                        matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
+                    }
+                });
             });
-        });
+        }
     }
 
     // IMPRESSÃO DE FATO (Criação do PDF)
