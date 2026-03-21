@@ -1032,7 +1032,7 @@ function generateGroups() {
     let numGroups = Math.floor(cat.players.length / 3);
     if (numGroups === 0) numGroups = 1;
 
-    // 2. ORDENAÇÃO: PEGA DO MAIOR RANKING PRO MENOR
+    // 2. ORDENAÇÃO: PEGA DO MAIOR RANKING PRO MENOR (Por Pontos)
     let pool = [...cat.players].sort((a, b) => {
         let ptsA = a.pointsRating !== undefined ? a.pointsRating : (a.points || 0);
         let ptsB = b.pointsRating !== undefined ? b.pointsRating : (b.points || 0);
@@ -1046,32 +1046,39 @@ function generateGroups() {
     }));
     
     // 3. SEPARAÇÃO BLINDADA DOS CABEÇAS DE CHAVE
+    // O de maior rating no A, 2º no B, 3º no C...
     for (let i = 0; i < numGroups; i++) {
         if (pool.length > 0) {
             cat.groups[i].players.push(pool.shift()); 
         }
     }
 
-    // 4. DISTRIBUI O RESTO DA GALERA COM A LÓGICA "SNAKE" CORRIGIDA
-    let direction = -1; 
-    let currentGroupIdx = numGroups - 1;
+    // 4. DISTRIBUI O RESTO DA GALERA COM A LÓGICA "SNAKE" (ZIGUE-ZAGUE PERFEITO DA CBTM)
+    let direction = -1; // -1 significa que a distribuição vai "voltar"
+    let currentGroupIdx = numGroups - 1; // Começa pelo último grupo preenchido (ex: C)
 
     while (pool.length > 0) {
+        // Coloca o jogador no grupo atual
         cat.groups[currentGroupIdx].players.push(pool.shift());
 
-        // Se só tem 1 grupo, não precisa de snake
+        // Se tiver apenas 1 grupo, não faz zigue-zague
         if (numGroups === 1) continue;
 
-        currentGroupIdx += direction;
+        // Planeja o próximo passo
+        let nextGroupIdx = currentGroupIdx + direction;
         
-        // Correção do Snake: quando bate na parede, inverte a direção mas repete o grupo
-        // para manter o formato serpentina correto (ex: C, B, A, A, B, C, C, B, A)
-        if (currentGroupIdx < 0) {
-            direction = 1; 
-            currentGroupIdx = 0;
-        } else if (currentGroupIdx >= numGroups) {
-            direction = -1; 
-            currentGroupIdx = numGroups - 1;
+        // CORREÇÃO CRÍTICA DO SNAKE:
+        // Se bater na ponta (antes do Grupo A ou depois do último grupo)
+        // Ele NÃO MUDA de grupo, apenas inverte a direção para repetir o grupo na ponta.
+        if (nextGroupIdx < 0) {
+            direction = 1; // Bateu no A, agora vai pro B
+            // currentGroupIdx continua 0 (Fica no A mais uma vez)
+        } else if (nextGroupIdx >= numGroups) {
+            direction = -1; // Bateu no último grupo, agora volta
+            // currentGroupIdx continua no último grupo (Fica nele mais uma vez)
+        } else {
+            // Se não bateu na parede, apenas avança pro próximo grupo
+            currentGroupIdx = nextGroupIdx;
         }
     }
     
@@ -1081,9 +1088,10 @@ function generateGroups() {
     
     if(typeof save === 'function') save(); 
     if(typeof renderGroups === 'function') renderGroups(); 
-    showToast('Grupos Sorteados (Grupos de 3 com Cabeças de Chave)!', 'success'); 
+    showToast('Grupos Sorteados por Ranking (Método Serpentina)!', 'success'); 
     if(typeof updateDashboard === 'function') updateDashboard();
 }
+
 
 
 
