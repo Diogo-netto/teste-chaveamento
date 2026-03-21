@@ -917,24 +917,87 @@ function buildStatsForGroup(group, matches) {
 }
 
 function getSortedPlayersForGroup(cat, group) {
-    const groupMatches = cat.matches.filter(m => m.groupId === group.id && m.winnerId);
-    const stats = buildStatsForGroup(group, groupMatches);
+    // Pegar as partidas do grupo
+    // Tratativa para garantir que puxamos do State/appData atualizado se cat.matches não estiver preenchido
+    const matchesSource = (cat.matches && cat.matches.length > 0) ? cat.matches : 
+                          (typeof appData !== 'undefined' ? appData.matches : []);
+    
+    const groupMatches = matchesSource.filter(m => m.groupId === group.id && m.winnerId && m.winnerId !== 'bye');
+    
+    // Calcula o Stats GERAL de todo mundo (usado para classificação normal)
+    const stats = typeof buildStatsForGroup === 'function' ? buildStatsForGroup(group, groupMatches) : {};
+    
     let sorted = [...group.players].map(p => {
-        const s = stats[p.id] || { wins:0, setRatio:0, pointRatio:0 };
+        const s = stats[p.id] || { wins: 0, setRatio: 0, pointRatio: 0, h2h: {} };
         return { ...p, wins: s.wins, setRatio: s.setRatio, pointRatio: s.pointRatio, stats: s };
     });
-    sorted.sort((a,b) => {
-        if(b.wins !== a.wins) return b.wins - a.wins; 
+
+    // Função interna que recalcula o Set/Point Ratio apenas entre jogadores específicos (Empate Triplo)
+    function calculateMiniStats(tiedPlayers) {
+        const tiedIds = tiedPlayers.map(p => p.id);
+        const miniMatches = groupMatches.filter(m => tiedIds.includes(m.p1Id) && tiedIds.includes(m.p2Id));
+        
+        let miniStats = {};
+        tiedIds.forEach(id => miniStats[id] = { sw: 0, sl: 0, pw: 0, pl: 0 });
+
+        miniMatches.forEach(m => {
+            const p1Set = parseInt(m.scoreP1) || 0;
+            const p2Set = parseInt(m.scoreP2) || 0;
+            const p1Pts = parseInt(m.pointsP1) || 0;
+            const p2Pts = parseInt(m.pointsP2) || 0;
+
+            miniStats[m.p1Id].sw += p1Set; miniStats[m.p1Id].sl += p2Set;
+            miniStats[m.p1Id].pw += p1Pts; miniStats[m.p1Id].pl += p2Pts;
+            
+            miniStats[m.p2Id].sw += p2Set; miniStats[m.p2Id].sl += p1Set;
+            miniStats[m.p2Id].pw += p2Pts; miniStats[m.p2Id].pl += p1Pts;
+        });
+
+        tiedPlayers.forEach(p => {
+            const ms = miniStats[p.id];
+            p.miniSetRatio = ms.sl === 0 ? ms.sw : ms.sw / ms.sl;
+            p.miniPointRatio = ms.pl === 0 ? ms.pw : ms.pw / ms.pl;
+        });
+    }
+
+    // A GRANDE ORDENAÇÃO
+    sorted.sort((a, b) => {
+        // 1º Critério Supremo: Quem tem mais vitórias passa primeiro
+        if (b.wins !== a.wins) return b.wins - a.wins; 
+        
+        // Pega todos que estão com esse exato número de vitórias
         let tied = sorted.filter(p => p.wins === a.wins);
-        if(tied.length === 2) {
+        
+        // EMPATE DUPLO: Confronto Direto
+        if (tied.length === 2) {
             let winnerId = a.stats.h2h[b.id];
-            if(winnerId) return winnerId === b.id ? 1 : -1;
+            if (winnerId) return winnerId === b.id ? 1 : -1;
         }
+        
+        // EMPATE TRIPLO OU MAIS: Descarte do "Pato"
+        if (tied.length >= 3) {
+            // Recalcula as médias de set e ponto apenas entre eles
+            calculateMiniStats(tied);
+            
+            // Empate Triplo: Desempata pelo Set Ratio do confronto direto
+            if (Math.abs(b.miniSetRatio - a.miniSetRatio) > 0.001) {
+                return b.miniSetRatio - a.miniSetRatio;
+            }
+            
+            // Empate Triplo: Se empatou no Set Ratio, vai pros Pontos Corridos do confronto direto
+            if (Math.abs(b.miniPointRatio - a.miniPointRatio) > 0.001) {
+                return b.miniPointRatio - a.miniPointRatio;
+            }
+        }
+        
+        // Se a zica for gigantesca e ainda empatar tudo, usa o Ratio Geral como último recurso
         if(b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
         return b.pointRatio - a.pointRatio;
     });
+
     return sorted;
 }
+
 
 // GROUPS GENERATION & EDITING
 function buildGroupMatches(cat) {
@@ -962,28 +1025,69 @@ function buildGroupMatches(cat) {
 
 function generateGroups() {
     const cat = getCurrentCategory();
-    if(cat.players.length < 3) { showToast('Mínimo 3 atletas!', 'error'); return; }
-    if(cat.groups.length > 0 && !confirm('Refazer sorteio?')) return;
+    if (cat.players.length < 3) { showToast('Mínimo 3 atletas!', 'error'); return; }
+    if (cat.groups && cat.groups.length > 0 && !confirm('Refazer sorteio? Isso apagará os jogos atuais.')) return;
 
-    let numGroups = Math.ceil(cat.players.length / 4);
-    if(cat.players.length / numGroups < 3) numGroups = Math.max(1, numGroups-1);
+    // 1. CÁLCULO DE GRUPOS: PRIORIZA GRUPOS DE 3 PESSOAS PARA NÃO TER JOGO DEMAIS
+    // Quantos grupos de 3 eu consigo fazer?
+    let numGroups = Math.floor(cat.players.length / 3);
     
-    // Sort by Ranking Points (Seeding)
-    let pool = [...cat.players].sort((a,b) => b.points - a.points);
+    // Se sobrar 1 ou 2 pessoas, eles entram como 4º membro em alguns grupos (ex: 10 atletas = dois de 3 e um de 4)
+    if (numGroups === 0) numGroups = 1; // Proteção mínima
+
+    // 2. ORDENAÇÃO: PEGA DO MAIOR RANKING PRO MENOR (Cabeças de Chave no topo)
+    // Usa pointsRating (rating atualizado) ou points (se não tiver)
+    let pool = [...cat.players].sort((a, b) => {
+        let ptsA = a.pointsRating !== undefined ? a.pointsRating : (a.points || 0);
+        let ptsB = b.pointsRating !== undefined ? b.pointsRating : (b.points || 0);
+        return ptsB - ptsA; 
+    });
     
-    cat.groups = Array.from({length: numGroups}, (_,i) => ({ id: i+1, name: `Grupo ${String.fromCharCode(65+i)}`, players: [] }));
+    // Cria as caixinhas dos Grupos (Grupo A, Grupo B, Grupo C...)
+    cat.groups = Array.from({length: numGroups}, (_, i) => ({ 
+        id: i + 1, 
+        name: `Grupo ${String.fromCharCode(65 + i)}`, 
+        players: [] 
+    }));
     
-    // Snake distribute
-    for(let i=0; i<pool.length; i++) {
-        const wave = Math.floor(i/numGroups);
-        const idx = wave%2===0 ? i%numGroups : (numGroups-1)-(i%numGroups);
-        cat.groups[idx].players.push(pool[i]);
+    // 3. SEPARAÇÃO BLINDADA DOS CABEÇAS DE CHAVE
+    // O Top 1 vai pro A, Top 2 pro B, Top 3 pro C... e aí acabou os cabeças.
+    for (let i = 0; i < numGroups; i++) {
+        if (pool.length > 0) {
+            cat.groups[i].players.push(pool.shift()); // Pega o primeiro da fila (mais forte) e tira da lista
+        }
+    }
+
+    // 4. DISTRIBUI O RESTO DA GALERA COM A LÓGICA "SNAKE" (Serpentina de ida e volta)
+    // Agora o pool só tem os jogadores "fracos" que sobraram.
+    let direction = -1; // Começa voltando (do grupo C pro A) para equilibrar a força
+    let currentGroupIdx = numGroups - 1;
+
+    while (pool.length > 0) {
+        cat.groups[currentGroupIdx].players.push(pool.shift());
+
+        // Movimento da serpentina (vai pro próximo grupo ou inverte a direção se bater na parede)
+        currentGroupIdx += direction;
+        
+        if (currentGroupIdx < 0) {
+            direction = 1; // Bateu no Grupo A, agora vai pro B
+            currentGroupIdx = 0;
+        } else if (currentGroupIdx >= numGroups) {
+            direction = -1; // Bateu no último grupo, agora volta
+            currentGroupIdx = numGroups - 1;
+        }
     }
     
     buildGroupMatches(cat);
-    cat.status = 'groups'; cat.bracket = null;
-    save(); renderGroups(); showToast('Grupos Sorteados (Cabeças de Chave)!', 'success'); updateDashboard();
+    cat.status = 'groups'; 
+    cat.bracket = null;
+    
+    if(typeof save === 'function') save(); 
+    if(typeof renderGroups === 'function') renderGroups(); 
+    showToast('Grupos Sorteados (Grupos de 3 com Cabeças de Chave)!', 'success'); 
+    if(typeof updateDashboard === 'function') updateDashboard();
 }
+
 
 // EDIT GROUPS MODAL
 function openEditGroupsModal() {
