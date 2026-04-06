@@ -55,7 +55,7 @@
 <script>
 window.onerror = function(msg, url, line) {
     console.error('Runtime Error:', msg, line);
-    showToast('Aviso: Verifique os dados inseridos.', 'error');
+    // showToast('Aviso: Verifique os dados inseridos.', 'error');
     return false;
 };
 </script>
@@ -80,16 +80,16 @@ window.onerror = function(msg, url, line) {
         <div id="setsContainer" class="flex flex-col gap-2 mb-4 bg-gray-50 p-4 rounded-lg">
             </div>
 
-        <div class="flex justify-center gap-2 mb-6">
-            <button onclick="applyWO('p1')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO (P1 Vence)</button>
-            <button onclick="applyWO('p2')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO (P2 Vence)</button>
+       <div class="flex justify-center gap-2 mb-6">
+            <button id="btnWoP1" onclick="applyWO('p1')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO</button>
+            <button id="btnWoP2" onclick="applyWO('p2')" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">WO</button>
         </div>
 
         <input type="hidden" id="modalMatchId"><input type="hidden" id="modalMatchType">
 
         <div class="flex gap-3">
             <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">Cancelar</button>
-            <button onclick="confirmScore()" class="flex-1 py-3 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-lg">Salvar (Enter)</button>
+            <button onclick="confirmScore()" class="flex-1 py-3 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-lg">Salvar</button>
         </div>
     </div>
 </div>
@@ -108,21 +108,32 @@ window.onerror = function(msg, url, line) {
 </div>
 
 <div class="flex h-full">
-    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl hidden md:flex">
+    <aside class="w-72 bg-slate-900 text-white flex flex-col shadow-xl hidden md:flex">
         <div class="p-6 border-b border-slate-800 bg-slate-950">
-            <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>Torneios PRO</h1>
-            <p class="text-xs text-slate-400 mt-1">Versão 5.2 </p>
+            <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>Sistema de Torneios</h1>
+            <p class="text-xs text-slate-400 mt-1">Versão 5.0 </p>
+        </div>
+        <div class="p-4 border-b border-slate-800 bg-slate-900">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Criar Torneio</label>
+            <div class="mt-1">
+                <select id="tournamentSelect" onchange="changeTournament()" class="w-full bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-orange-500 outline-none text-xs font-bold text-orange-400"></select>
+            </div>
+            <div class="flex gap-2 mt-2">
+                <button onclick="addNewTournament()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded border border-slate-600 transition-colors text-xs flex justify-center items-center gap-1" title="Criar Novo Torneio"><i class="fas fa-plus"></i> Novo</button>
+                <button onclick="editTournamentName()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded border border-slate-600 transition-colors text-xs flex justify-center items-center gap-1" title="Editar Nome do Torneio"><i class="fas fa-edit"></i> Editar</button>
+                <button onclick="deleteTournament()" class="bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white py-1.5 px-3 rounded border border-red-800/50 transition-colors text-xs flex justify-center items-center" title="Apagar Torneio Atual"><i class="fas fa-trash-alt"></i></button>
+            </div>
         </div>
         <div class="p-4">
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
             <select id="categorySelect" onchange="changeCategory()" class="w-full mt-2 bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-orange-500 outline-none text-sm"></select>
-            <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600">+ Nova Categoria</button>
+            <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600"> Nova Categoria</button>
         </div>
         <nav class="flex-1 overflow-y-auto py-4">
             <button onclick="switchTab('ratingreport')" id="nav-ratingreport" class="nav-item w-full text-left px-4 py-3 hover:bg-slate-800 transition border-l-4 border-transparent mt-2">
-    <i class="fas fa-chart-line w-4 text-purple-400"></i> Análise Ranking e Rating 
+    <i class="fas fa-chart-line w-4 text-purple-400"></i> Análise Ranking e Rating
 </button>
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent active-nav"><i class="fas fa-chart-pie w-6"></i> Dashboard</button>
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent active-nav"><i class="fas fa-chart-pie w-6"></i> Visão Geral</button>
             <button onclick="switchTab('registration')" id="nav-registration" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-users w-6"></i> Inscrições</button>
             <button onclick="switchTab('groups')" id="nav-groups" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-layer-group w-6"></i> Fase de Grupos</button>
             <button onclick="switchTab('bracket')" id="nav-bracket" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-trophy w-6"></i> Mata-Mata</button>
@@ -146,7 +157,7 @@ window.onerror = function(msg, url, line) {
     <main class="flex-1 flex flex-col bg-gray-100 overflow-hidden relative">
         <header class="bg-white shadow-sm px-8 py-4 flex justify-between items-center z-10">
             <div>
-                <h2 class="text-2xl font-bold text-gray-800" id="headerTitle">Dashboard</h2>
+                <h2 class="text-2xl font-bold text-gray-800" id="headerTitle">Painel de Controle</h2>
                 <p class="text-sm text-gray-500" id="headerSubtitle">Visão geral</p>
             </div>
             <div class="flex gap-2">
@@ -204,7 +215,7 @@ window.onerror = function(msg, url, line) {
 
         <div class="bg-white rounded-xl shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                <h3 class="font-bold text-gray-700">Atletas Inscritos (Sorteio usará Ranking)</h3>
+                <h3 class="font-bold text-gray-700">Sorteio: Prioriza Ranking > Depois Rating > Serpentina no Resto</h3>
                 <span class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm font-bold" id="playerCountBadge">0</span>
             </div>
             <ul id="playersList" class="divide-y divide-gray-100 max-h-[500px] overflow-y-auto"></ul>
@@ -215,9 +226,9 @@ window.onerror = function(msg, url, line) {
     <div id="view-groups" class="view-section hidden">
         <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center justify-between no-print">
             <div class="flex gap-2">
-                <button onclick="generateGroups()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 shadow"><i class="fas fa-dice mr-2"></i> Sortear (Por Pontos)</button>
+                <button onclick="generateGroups()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 shadow"><i class="fas fa-dice mr-2"></i> Sortear Grupos</button>
                 <button onclick="openEditGroupsModal()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 shadow"><i class="fas fa-edit mr-2"></i> Editar Grupos</button>
-                <button onclick="printScoresheets('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas</button>
+                <button onclick="printScoresheets('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas Imprimir</button>
                 <button onclick="printReport('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Relatório</button>
             </div>
             <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Desempate Automático </div>
@@ -225,6 +236,7 @@ window.onerror = function(msg, url, line) {
         <div id="groupsContainer" class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20"></div>
         <div id="finishGroupsBtn" class="fixed bottom-8 right-8 hidden no-print">
             <button onclick="finalizeGroups()" class="bg-green-600 text-white px-6 py-4 rounded-full shadow-2xl font-bold hover:bg-green-700 animate-bounce flex items-center gap-3"><span>Gerar Mata-Mata</span><i class="fas fa-arrow-right"></i></button>
+            <button onclick="finalizeGroups('split')" class="px-4 py-2 bg-blue-600 text-white rounded font-bold ml-2">Gerar Mata-Mata Divisões (A,B,C,D)</button>
         </div>
     </div>
 
@@ -378,6 +390,60 @@ window.deleteCurrentCategory = function() {
 };
 
 
+function deleteTournament() {
+    // Trava de segurança: não deixa apagar se só tiver 1 torneio no sistema
+    if (Tournaments.length <= 1) {
+        showToast('Você precisa ter pelo menos um torneio no sistema.', 'error');
+        return;
+    }
+
+    const tToDelete = Tournaments.find(t => t.id === currentTournamentId);
+    
+    // Confirmação de segurança dupla
+    if (!confirm(`⚠️ ATENÇÃO!\nTem certeza que deseja apagar o torneio "${tToDelete.name}" e TODAS as suas categorias e jogos?\nEsta ação não pode ser desfeita!`)) {
+        return;
+    }
+
+    // 1. Apaga a "pasta" desse torneio da memória do navegador para não pesar
+    const keyToDelete = currentTournamentId === 'default' ? 'altm_pro_v5_data' : 'altm_data_' + currentTournamentId;
+    localStorage.removeItem(keyToDelete);
+
+    // 2. Remove o torneio da lista mestre
+    Tournaments = Tournaments.filter(t => t.id !== currentTournamentId);
+
+    // 3. Define o próximo torneio da lista como o ativo automaticamente
+    currentTournamentId = Tournaments[0].id;
+    
+    // 4. Salva tudo e dá o refresh na tela
+    localStorage.setItem(MASTER_KEY, JSON.stringify(Tournaments));
+    localStorage.setItem(ACTIVE_T_KEY, currentTournamentId);
+
+    showToast('Torneio apagado com sucesso!', 'success');
+    setTimeout(() => location.reload(), 800);
+}
+
+
+function editTournamentName() {
+    const tToEdit = Tournaments.find(t => t.id === currentTournamentId);
+    if (!tToEdit) return;
+
+    // Abre a janelinha já com o nome atual escrito para facilitar
+    const newName = prompt('Editar nome do Torneio:', tToEdit.name);
+    
+    if (newName && newName.trim() !== '' && newName.trim() !== tToEdit.name) {
+        tToEdit.name = newName.trim();
+        
+        // Salva o novo nome
+        localStorage.setItem(MASTER_KEY, JSON.stringify(Tournaments));
+        
+        showToast('Nome do torneio atualizado!', 'success');
+        
+        // Atualiza a caixinha na mesma hora sem precisar recarregar a tela inteira
+        renderTournamentSelect(); 
+    }
+}
+
+
 // ==========================================
 // MÓDULO: RANKING GLOBAL (LIGA ALTM PRO)
 // ==========================================
@@ -460,12 +526,17 @@ function formatSetScoresTiny(setScores) {
     if(!setScores || !setScores.length) return '';
     return setScores.map(s => `${s.p1}-${s.p2}`).join(' • ');
 }
-
-
-// CONFIG
+// ==========================================
+// CONFIG E GUARDA-CHUVA DE TORNEIOS
+// ==========================================
 const MATCH_WIN_SETS = 3;
-const STORAGE_KEY = 'altm_pro_v5_data';
 const PLAYERS_KEY = 'altm_global_players'; 
+const MASTER_KEY = 'altm_tournaments_list';
+const ACTIVE_T_KEY = 'altm_active_tournament_id';
+
+let Tournaments = [];
+let currentTournamentId = null;
+let STORAGE_KEY = 'altm_pro_v5_data'; // Chave padrão original!
 
 // STATE E BANCO DE DADOS GLOBAL
 const State = { 
@@ -479,12 +550,40 @@ const getCurrentCategory = () => State.categories.find(c => c.id === State.curre
 const save = () => { 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(State.categories)); 
     localStorage.setItem(PLAYERS_KEY, JSON.stringify(State.players)); 
+    
+    // Salva a lista de torneios
+    if (Tournaments.length > 0) {
+        localStorage.setItem(MASTER_KEY, JSON.stringify(Tournaments));
+        localStorage.setItem(ACTIVE_T_KEY, currentTournamentId);
+    }
 };
 
 const load = () => {
     try {
+        // 1. Carrega a lista de torneios
+        const tData = localStorage.getItem(MASTER_KEY);
+        if (tData) {
+            Tournaments = JSON.parse(tData);
+        } else {
+            // A MÁGICA: Puxa o seu torneio antigo de volta à vida!
+            Tournaments = [{id: 'default', name: 'Torneio Atual (Antigo)'}]; 
+        }
+
+        // 2. Descobre em qual torneio estamos
+        currentTournamentId = localStorage.getItem(ACTIVE_T_KEY) || Tournaments[0].id;
+        
+        // Proteção: se der pane, volta pro torneio antigo
+        if (!Tournaments.find(t => t.id === currentTournamentId)) {
+            currentTournamentId = Tournaments[0].id;
+        }
+        
+        // 3. Aponta para a pasta de dados certa
+        STORAGE_KEY = currentTournamentId === 'default' ? 'altm_pro_v5_data' : 'altm_data_' + currentTournamentId;
+
+        // 4. Carrega os dados
         const data = localStorage.getItem(STORAGE_KEY);
         if (data) State.categories = JSON.parse(data);
+        else State.categories = []; // Torneio novo nasce vazio
 
         const playersData = localStorage.getItem(PLAYERS_KEY);
         if (playersData) State.players = JSON.parse(playersData);
@@ -494,6 +593,48 @@ const load = () => {
     if (!State.categories.length) State.addCategory('Geral');
     if (!State.currentCategoryId) State.currentCategoryId = State.categories[0].id;
 };
+
+// ==========================================
+// FUNÇÕES DO GUARDA-CHUVA (TROCA DE TORNEIO)
+// ==========================================
+function renderTournamentSelect() {
+    const select = document.getElementById('tournamentSelect');
+    if(!select) return;
+    select.innerHTML = Tournaments.map(t => `<option value="${t.id}" ${t.id === currentTournamentId ? 'selected' : ''}>🏆 ${t.name}</option>`).join('');
+}
+
+function changeTournament() {
+    currentTournamentId = document.getElementById('tournamentSelect').value;
+    localStorage.setItem(ACTIVE_T_KEY, currentTournamentId);
+    location.reload(); 
+}
+
+function addNewTournament() {
+    const name = prompt('Nome do Novo Torneio (Ex: 1ª Copa JF):');
+    if(name && name.trim()) {
+        const newId = 't_' + Date.now();
+        Tournaments.push({id: newId, name: name.trim()});
+        currentTournamentId = newId;
+        
+        localStorage.setItem(MASTER_KEY, JSON.stringify(Tournaments));
+        localStorage.setItem(ACTIVE_T_KEY, currentTournamentId);
+        
+        showToast('Torneio criado! Preparando ambiente...', 'success');
+        setTimeout(() => location.reload(), 800);
+    }
+}
+
+// ==========================================
+// INICIALIZAÇÃO DO SISTEMA (INIT)
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+  load();
+  renderTournamentSelect(); // <-- AQUI ESTÁ A CORREÇÃO PRINCIPAL!
+  renderCategorySelect();
+  renderGlobalPlayers();
+  updateDashboard();
+  switchTab('dashboard');
+});
 
 // CATEGORY MANAGER
 State.addCategory = (name) => {
@@ -1198,29 +1339,123 @@ ${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt
     const btn = document.getElementById('finishGroupsBtn');
     if(btn) btn.classList.toggle('hidden', !allDone);
 }
-// BRACKET (AJUSTADO: Chave fixa para 3 grupos + Olímpico para o resto)
-function finalizeGroups() {
-    if(!confirm('Gerar Chave Mata-Mata?')) return;
+// =======================================================================
+// BRACKET HÍBRIDO (Modo Padrão com proteção 3 grupos + Modo Divisão ABCD)
+// =======================================================================
+function finalizeGroups(mode = 'standard') {
+    if(!confirm(mode === 'split' ? 'Gerar Divisões (Séries A, B, C e D)?' : 'Gerar Chave Mata-Mata Principal?')) return;
+    
     const cat = getCurrentCategory();
-    let qualifiers = [];
+    
+    // Arrays para separar a galera
+    let qualifiers = []; // Para a sua lógica padrão (Ouro)
+    let splitQualifiers = { 'A': [], 'B': [], 'C': [], 'D': [] }; // Para o modo divisão
+    
     cat.groups.forEach((g, idx) => {
         const sorted = typeof getSortedPlayersForGroup === 'function' ? getSortedPlayersForGroup(cat, g) : g.players;
+        
+        // Padrão (1º e 2º) - Para o botão verde
         if(sorted[0]) qualifiers.push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
         if(sorted[1]) qualifiers.push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
+        
+        // Divisões (A=1º, B=2º, C=3º, D=4º) - Para o botão azul
+        if(sorted[0]) splitQualifiers['A'].push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
+        if(sorted[1]) splitQualifiers['B'].push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
+        if(sorted[2]) splitQualifiers['C'].push({...sorted[2], rank:3, gIdx: idx, gName: g.name});
+        if(sorted[3]) splitQualifiers['D'].push({...sorted[3], rank:4, gIdx: idx, gName: g.name});
     });
-    
+
+    // ==========================================
+    // SE CLICOU NO BOTÃO AZUL (GERAR DIVISÕES A, B, C, D)
+    // ==========================================
+    if (mode === 'split') {
+        const generateOlympicBracket = (playersList, prefix) => {
+            if(playersList.length < 2) return null;
+            let size = 2; while(size < playersList.length) size *= 2;
+            playersList.sort((a,b) => { if(a.rank !== b.rank) return a.rank - b.rank; return (b.points || 0) - (a.points || 0); });
+
+            const getSeedingPattern = (n) => {
+                let rds = [1, 2];
+                for (let r = 2; r < n; r *= 2) {
+                    let next = [];
+                    for (let i = 0; i < rds.length; i++) { next.push(rds[i]); next.push((r * 2 + 1) - rds[i]); }
+                    rds = next;
+                }
+                return rds;
+            };
+
+            const pattern = getSeedingPattern(size);
+            let r1 = []; let rounds = []; let matchId = 1;
+
+            for(let i=0; i < size/2; i++) {
+                const p1 = playersList[pattern[i * 2] - 1] || {name:'BYE', id:'bye'};
+                const p2 = playersList[pattern[i * 2 + 1] - 1] || {name:'BYE', id:'bye'};
+                let m = { id: `${prefix}-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
+
+                if (m.p1.id === 'bye' && m.p2.id === 'bye') { /* jogo nulo */ }
+                else if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP1 = 0; }
+                else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP2 = 0; }
+                r1.push(m);
+            }
+            rounds.push(r1);
+
+            let totalRounds = Math.log2(size);
+            for(let r=2; r<=totalRounds; r++) {
+                let prev = rounds[rounds.length-1]; let next = [];
+                for(let i=0; i<prev.length; i+=2) {
+                    let m1 = prev[i] || { id: `ghost1`, winner: null };
+                    let m2 = prev[i+1] || { id: `ghost2`, winner: null };
+                    let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
+                    let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
+
+                    let nm = { id: `${prefix}-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
+
+                    if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) { nm.winner = m1.winner; nm.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP2 = 0; }
+                    else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) { nm.winner = m2.winner; nm.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP1 = 0; }
+
+                    if (m1.id && !m1.id.startsWith('ghost')) m1.nextId = nm.id;
+                    if (m2.id && !m2.id.startsWith('ghost')) m2.nextId = nm.id;
+                    next.push(nm);
+                }
+                rounds.push(next);
+            }
+            return { rounds };
+        };
+
+        cat.brackets = {}; // Cria as múltiplas chaves
+        if (splitQualifiers['A'].length >= 2) cat.brackets['A'] = generateOlympicBracket(splitQualifiers['A'], 'bA');
+        if (splitQualifiers['B'].length >= 2) cat.brackets['B'] = generateOlympicBracket(splitQualifiers['B'], 'bB');
+        if (splitQualifiers['C'].length >= 2) cat.brackets['C'] = generateOlympicBracket(splitQualifiers['C'], 'bC');
+        if (splitQualifiers['D'].length >= 2) cat.brackets['D'] = generateOlympicBracket(splitQualifiers['D'], 'bD');
+
+        let chavesGeradas = Object.keys(cat.brackets);
+        if (chavesGeradas.length === 0) { showToast('Nenhum grupo formado para as divisões', 'error'); return; }
+
+        window.activeSplitLevel = chavesGeradas[0]; // Seleciona a primeira aba disponível (A)
+        cat.bracket = cat.brackets[window.activeSplitLevel]; // Aponta a visualização pra ela
+        cat.status = 'bracket';
+
+        if(typeof save === 'function') save(); 
+        if(typeof switchTab === 'function') switchTab('bracket'); 
+        showToast('Divisões A, B, C e D Geradas com sucesso!', 'success'); 
+        if(typeof updateDashboard === 'function') updateDashboard();
+        return; // Termina a função aqui para não rodar a lógica antiga
+    }
+
+    // ==========================================
+    // SE CLICOU NO BOTÃO VERDE (LÓGICA PADRÃO INTACTA)
+    // ==========================================
     if(qualifiers.length < 2) { showToast('Poucos classificados', 'error'); return; }
+    
+    // Se tinha divisões antigas salvas, ele apaga para focar na padrão
+    delete cat.brackets; 
 
     const numGroups = cat.groups.length;
     let rounds = []; 
     let matchId = 1;
 
-    // ==========================================
-    // REGRA EXCLUSIVA E FIXA PARA 3 GRUPOS (Chave de 6)
-    // ==========================================
+    // A SUA REGRA EXCLUSIVA PARA 3 GRUPOS
     if (numGroups === 3) {
-        
-        // Pega os jogadores exatos baseados nos grupos A(0), B(1), C(2)
         const firstA = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1º Grupo A', id:'ghost'};
         const firstB = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1º Grupo B', id:'ghost'};
         const firstC = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1º Grupo C', id:'ghost'};
@@ -1230,24 +1465,15 @@ function finalizeGroups() {
         const bye = {name: 'BYE', id: 'bye'};
 
         let r1 = [];
-        
-        // Jogo 1 (Topo) -> 1º Grupo A vs BYE
         let m1 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:firstA.name, id:firstA.id}, p2: {name:bye.name, id:bye.id}, scoreP1: typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3, scoreP2: 0, winner: {name:firstA.name, id:firstA.id} };
-        
-        // Jogo 2 (Topo) -> 2º Grupo B vs 2º Grupo C
         let m2 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:secondB.name, id:secondB.id}, p2: {name:secondC.name, id:secondC.id}, scoreP1: null, scoreP2: null, winner: null };
-        
-        // Jogo 3 (Base) -> 1º Grupo C vs 2º Grupo A (Invertido pro lado de baixo da chave!)
         let m3 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:firstC.name, id:firstC.id}, p2: {name:secondA.name, id:secondA.id}, scoreP1: null, scoreP2: null, winner: null };
-        
-        // Jogo 4 (Base) -> BYE vs 1º Grupo B
         let m4 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:bye.name, id:bye.id}, p2: {name:firstB.name, id:firstB.id}, scoreP1: 0, scoreP2: typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3, winner: {name:firstB.name, id:firstB.id} };
         
         r1.push(m1, m2, m3, m4);
         rounds.push(r1);
 
-        // Monta rodadas seguintes genéricas (Semi e Final)
-        let totalRounds = 3; // Porque 3 grupos = 6 pessoas (Quartas, Semi, Final)
+        let totalRounds = 3; 
         for(let r=2; r<=totalRounds; r++) {
             let prev = rounds[rounds.length-1];
             let next = [];
@@ -1260,16 +1486,13 @@ function finalizeGroups() {
                 
                 mPrev1.nextId = nm.id; 
                 mPrev2.nextId = nm.id;
-                
                 next.push(nm);
             }
             rounds.push(next);
         }
 
     } else {
-        // ==========================================
-        // LÓGICA PADRÃO PARA OUTROS GRUPOS (Chaveamento Olímpico)
-        // ==========================================
+        // A SUA LÓGICA OLÍMPICA PADRÃO PARA OUTROS GRUPOS
         let size = 2; 
         while(size < qualifiers.length) size *= 2;
 
@@ -1304,7 +1527,6 @@ function finalizeGroups() {
             let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
             
             if (m.p1.id === 'bye' && m.p2.id === 'bye') {
-                // jogo nulo
             } else if (m.p1.id === 'bye') {
                 m.winner = m.p2; m.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP1 = 0;
             } else if (m.p2.id === 'bye') {
@@ -1328,7 +1550,6 @@ function finalizeGroups() {
 
                 let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
                 
-                // Avança o fantasma/BYE na chave
                 if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) {
                      nm.winner = m1.winner; nm.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP2 = 0;
                 } else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) {
@@ -1356,23 +1577,36 @@ function renderBracket() {
     const cat = getCurrentCategory();
     const canvas = document.getElementById('bracketCanvas');
     
-    // Se não há bracket oficial, mostra PREVIEW
-    if(!cat || !cat.bracket) { 
-        // Verifica se há grupos sorteados
-        if(!cat.groups || cat.groups.length === 0) {
+    // Se não há bracket oficial e nem divisões, mostra PREVIEW ou Aguardando
+    if(!cat || (!cat.bracket && !cat.brackets)) { 
+        if(cat && (!cat.groups || cat.groups.length === 0)) {
             canvas.innerHTML = '<div class="w-full text-center py-10 text-gray-400">Aguardando grupos.</div>'; 
             return; 
         }
-        
         // GERA PREVIEW VISUAL
-        canvas.innerHTML = generateBracketPreview();
+        canvas.innerHTML = typeof generateBracketPreview === 'function' ? generateBracketPreview() : '';
         return;
     }
     
-    // BRACKET OFICIAL (quando já foi gerado)
-    canvas.innerHTML = cat.bracket.rounds.map((r, i) => {
+    let htmlTabs = '';
+    // SE TEM DIVISÕES (Botão Azul foi clicado), cria os botões para alternar as abas
+    if (cat.brackets) {
+        htmlTabs += `<div class="w-full flex justify-center gap-2 mb-6">`;
+        Object.keys(cat.brackets).forEach(level => {
+            const isActive = window.activeSplitLevel === level;
+            // O onclick: Ele aponta o sistema para a aba clicada e re-renderiza
+            htmlTabs += `<button onclick="window.activeSplitLevel='${level}'; getCurrentCategory().bracket = getCurrentCategory().brackets['${level}']; renderBracket();" class="px-4 py-2 rounded font-bold text-xs shadow-sm transition-all ${isActive ? 'bg-blue-600 text-white transform scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">SÉRIE ${level}</button>`;
+        });
+        htmlTabs += `</div>`;
+    }
+
+    // Define qual chave vai ser desenhada na tela
+    const targetRounds = cat.bracket ? cat.bracket.rounds : [];
+
+    // Desenha as rodadas
+    const roundsHtml = targetRounds.map((r, i) => {
         // Nomenclatura dinâmica das fases do mata-mata
-        const roundsLeft = cat.bracket.rounds.length - i;
+        const roundsLeft = targetRounds.length - i;
         let name = `Rodada ${i+1}`;
         if (roundsLeft === 1) name = 'FINAL';
         else if (roundsLeft === 2) name = 'SEMIFINAL';
@@ -1389,17 +1623,20 @@ function renderBracket() {
                     const done = !!m.winner;
                     const isBye = m.p1.id==='bye' || m.p2.id==='bye';
                     return `
-                    <div class="match-card ${done?'completed':'pending'} ${m.isThirdPlace?'third-place mt-10':''}" ${!done && !isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
+                    <div class="match-card ${done?'completed':'pending'} ${m.isThirdPlace?'third-place mt-10':''}" ${!isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
                         ${m.isThirdPlace ? `<div class="text-[10px] font-bold text-blue-500 mb-1">Disputa de 3º Lugar</div>` : ''}
                         <div class="flex justify-between mb-1"><span class="truncate w-28 ${m.winner?.id===m.p1.id?'font-bold text-green-600':''}">${m.p1.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP1!=null?m.scoreP1:'-'}</span></div>
                         <div class="flex justify-between"><span class="truncate w-28 ${m.winner?.id===m.p2.id?'font-bold text-green-600':''}">${m.p2.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP2!=null?m.scoreP2:'-'}</span></div>
                         <div class="text-[10px] text-gray-400 text-center mt-2 border-t pt-1">Jogo ${m.id.split('-').pop().replace('3rd','3º')}</div>
-                        ${i < cat.bracket.rounds.length-1 && !m.isThirdPlace ? '<div class="connector"></div>' : ''}
+                        ${i < targetRounds.length-1 && !m.isThirdPlace ? '<div class="connector"></div>' : ''}
                     </div>`
                 }).join('')}
             </div>
         </div>`;
     }).join('');
+
+    // Injeta os botões de aba (se houver) e o HTML do torneio na tela
+    canvas.innerHTML = htmlTabs + `<div class="flex w-full">${roundsHtml}</div>`;
 }
 
 
@@ -1534,6 +1771,14 @@ function openScoreModal(type, mid) {
     }
     document.getElementById('modalP1Name').innerText = n1;
     document.getElementById('modalP2Name').innerText = n2;
+
+    // =========================================
+    // INJETANDO OS NOMES NOS BOTÕES DE W.O.
+    // =========================================
+    const btnWo1 = document.getElementById('btnWoP1');
+    const btnWo2 = document.getElementById('btnWoP2');
+    if (btnWo1) btnWo1.innerText = `WO (${n1 || 'P1'})`;
+    if (btnWo2) btnWo2.innerText = `WO (${n2 || 'P2'})`;
     
     let setsHtml = '';
     for(let i=1; i<=5; i++) {
@@ -1624,101 +1869,107 @@ function confirmScore() {
         renderBracket();
     }
 
-        // =======================================================
-    // INÍCIO DA CALCULADORA DE RATING (PADRÃO TMB)
+    // =======================================================
+    // MOTOR DE RECÁLCULO DE RATING (COM TRAVA INTELIGENTE E DIVISÕES)
     // =======================================================
     const cat = getCurrentCategory();
     
-    let player1 = cat.players.find(p => p.id === (type === 'group' ? m.p1Id : m.p1.id));
-    let player2 = cat.players.find(p => p.id === (type === 'group' ? m.p2Id : m.p2.id));
-    let matchWinnerId = type === 'group' ? m.winnerId : m.winner.id;
+    // A MÁGICA AQUI: O sistema varre a lista de inscritos. 
+    // Se achar alguém com Rating > 0, ele "LIGA" a calculadora.
+    // Se todo mundo for 0 (campo deixado em branco), ele "DESLIGA" e não gera histórico.
+    const isRatingActive = cat.players.some(p => (p.initialRating || 0) > 0);
 
-    // Só calcula se for jogo de verdade (não contabiliza W.O contra "BYE")
-    if (player1 && player2 && matchWinnerId && player1.id !== 'bye' && player2.id !== 'bye') {
-        player1.pointsRating = player1.pointsRating || 0;
-        player2.pointsRating = player2.pointsRating || 0;
-        player1.ratingHistory = player1.ratingHistory || [];
-        player2.ratingHistory = player2.ratingHistory || [];
+    // 1. Zera o rating e o histórico de todo mundo de volta pro valor inicial
+    cat.players.forEach(p => {
+        p.pointsRating = p.initialRating || 0;
+        p.ratingHistory = [];
+    });
 
-        function getCBTMRatingChange(ratingWinner, ratingLoser) {
-            const diff = ratingWinner - ratingLoser;
-            let winPoints = 0; 
-            let losePoints = 0;
-            
-            // SE O VENCEDOR ERA O FAVORITO (Diferença positiva)
-            if (diff >= 0) {
-                if (diff >= 750) { winPoints = 1; losePoints = 1; }
-                else if (diff >= 500) { winPoints = 2; losePoints = 2; }
-                else if (diff >= 400) { winPoints = 3; losePoints = 3; }
-                else if (diff >= 300) { winPoints = 4; losePoints = 4; }
-                else if (diff >= 200) { winPoints = 5; losePoints = 5; }
-                else if (diff >= 150) { winPoints = 6; losePoints = 6; }
-                else if (diff >= 100) { winPoints = 7; losePoints = 7; }
-                else if (diff >= 50) { winPoints = 8; losePoints = 8; }
-                else if (diff >= 25) { winPoints = 9; losePoints = 9; }
-                else { winPoints = 10; losePoints = 10; }
-            } 
-            // SE O VENCEDOR ERA O AZARÃO (Diferença negativa)
-            else {
-                const absDiff = Math.abs(diff); 
-                if (absDiff >= 500) { winPoints = 30; losePoints = 30; } 
-                else if (absDiff >= 400) { winPoints = 26; losePoints = 26; }
-                else if (absDiff >= 300) { winPoints = 23; losePoints = 23; }
-                else if (absDiff >= 200) { winPoints = 20; losePoints = 20; }
-                else if (absDiff >= 150) { winPoints = 18; losePoints = 18; }
-                else if (absDiff >= 100) { winPoints = 16; losePoints = 16; }
-                else if (absDiff >= 50) { winPoints = 14; losePoints = 14; }
-                else if (absDiff >= 25) { winPoints = 12; losePoints = 12; }
-                else { winPoints = 11; losePoints = 11; }
-            }
-            return { winPoints, losePoints };
+    // 2. Função interna com a Matemática TMB/Varginha
+    function getCBTMRatingChange(ratingWinner, ratingLoser) {
+        const diff = ratingWinner - ratingLoser;
+        let winPoints = 0; let losePoints = 0;
+        if (diff >= 0) {
+            if (diff >= 750) { winPoints = 1; losePoints = 1; }
+            else if (diff >= 500) { winPoints = 2; losePoints = 2; }
+            else if (diff >= 400) { winPoints = 3; losePoints = 3; }
+            else if (diff >= 300) { winPoints = 4; losePoints = 4; }
+            else if (diff >= 200) { winPoints = 5; losePoints = 5; }
+            else if (diff >= 150) { winPoints = 6; losePoints = 6; }
+            else if (diff >= 100) { winPoints = 7; losePoints = 7; }
+            else if (diff >= 50) { winPoints = 8; losePoints = 8; }
+            else if (diff >= 25) { winPoints = 9; losePoints = 9; }
+            else { winPoints = 10; losePoints = 10; }
+        } else {
+            const absDiff = Math.abs(diff); 
+            if (absDiff >= 500) { winPoints = 30; losePoints = 30; } 
+            else if (absDiff >= 400) { winPoints = 26; losePoints = 26; }
+            else if (absDiff >= 300) { winPoints = 23; losePoints = 23; }
+            else if (absDiff >= 200) { winPoints = 20; losePoints = 20; }
+            else if (absDiff >= 150) { winPoints = 18; losePoints = 18; }
+            else if (absDiff >= 100) { winPoints = 16; losePoints = 16; }
+            else if (absDiff >= 50) { winPoints = 14; losePoints = 14; }
+            else if (absDiff >= 25) { winPoints = 12; losePoints = 12; }
+            else { winPoints = 11; losePoints = 11; }
         }
+        return { winPoints, losePoints };
+    }
 
-        const winnerObj = player1.id === matchWinnerId ? player1 : player2;
-        const loserObj = player1.id === matchWinnerId ? player2 : player1;
-        
-        // Impede de somar os pontos duas vezes caso você edite o placar desse mesmo jogo depois
-        if (!m.ratingCalculated) {
+    // 3. Processa e recalcula uma partida isolada
+    function processMatch(matchObj, matchType) {
+        let player1Id = matchType === 'group' ? matchObj.p1Id : matchObj.p1?.id;
+        let player2Id = matchType === 'group' ? matchObj.p2Id : matchObj.p2?.id;
+        let mWinnerId = matchType === 'group' ? matchObj.winnerId : matchObj.winner?.id;
+
+        if (!player1Id || !player2Id || !mWinnerId || player1Id === 'bye' || player2Id === 'bye') return;
+
+        let p1 = cat.players.find(p => p.id === player1Id);
+        let p2 = cat.players.find(p => p.id === player2Id);
+
+        if (p1 && p2) {
+            const winnerObj = p1.id === mWinnerId ? p1 : p2;
+            const loserObj = p1.id === mWinnerId ? p2 : p1;
+
             const changes = getCBTMRatingChange(winnerObj.pointsRating, loserObj.pointsRating);
             
             winnerObj.pointsRating += changes.winPoints;
             loserObj.pointsRating -= changes.losePoints;
             
             winnerObj.ratingHistory.push({
-                matchId: m.id,
-                opponent: loserObj.name,
-                result: 'Vitória',
-                categoryName: cat.name,
-                pointsChange: `+${changes.winPoints}`
+                matchId: matchObj.id, opponent: loserObj.name, result: 'Vitória', categoryName: cat.name, pointsChange: `+${changes.winPoints}`
             });
-
             loserObj.ratingHistory.push({
-                matchId: m.id,
-                opponent: winnerObj.name,
-                result: 'Derrota',
-                categoryName: cat.name,
-                pointsChange: `-${changes.losePoints}`
+                matchId: matchObj.id, opponent: winnerObj.name, result: 'Derrota', categoryName: cat.name, pointsChange: `-${changes.losePoints}`
             });
+        }
+    }
 
-            m.ratingCalculated = true;
+    // 4. Varre TODOS os jogos terminados de Grupos e TODOS os Mata-Matas possíveis
+    if (isRatingActive) {
+        if (cat.matches) {
+            cat.matches.forEach(match => { if (match.winnerId) processMatch(match, 'group'); });
+        }
+        // Calcula a chave Ouro Padrão (se for ela)
+        if (cat.bracket && cat.bracket.rounds && !cat.brackets) {
+            cat.bracket.rounds.forEach(round => { round.forEach(match => { if (match.winner) processMatch(match, 'bracket'); }); });
+        }
+        // Calcula as chaves A, B, C, e D (se for o modo Divisão)
+        if (cat.brackets) {
+            Object.values(cat.brackets).forEach(b => {
+                if(b && b.rounds) b.rounds.forEach(round => round.forEach(match => { if (match.winner) processMatch(match, 'bracket'); }));
+            });
         }
     }
     // =======================================================
-    // FIM DA CALCULADORA DE RATING
+    // FIM DO MOTOR DE RECÁLCULO
     // =======================================================
-
 
     save();
     updateDashboard();
     closeModal();
-    showToast('Placar Salvo!', 'success');
-
-    
-    
-    closeModal();
     showToast('Placar Salvo! ✅', 'success');
 
-     if (cat && cat.bracket && cat.bracket.rounds) {
+    if (cat && cat.bracket && cat.bracket.rounds) {
         const finalRound = cat.bracket.rounds[cat.bracket.rounds.length - 1];
         const finalMatch = finalRound.find(x => !x.isThirdPlace);
         if (finalMatch && finalMatch.winner) {
