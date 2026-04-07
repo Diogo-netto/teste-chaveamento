@@ -127,7 +127,7 @@ window.onerror = function(msg, url, line) {
         <div class="p-4">
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
             <select id="categorySelect" onchange="changeCategory()" class="w-full mt-2 bg-slate-800 text-white border border-slate-700 rounded p-2 focus:ring-2 focus:ring-orange-500 outline-none text-sm"></select>
-            <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600"> Nova Categoria</button>
+            <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600"> Nova Categoria ou Etapa</button>
         </div>
         <nav class="flex-1 overflow-y-auto py-4">
             <button onclick="switchTab('mesas')" id="btn-tab-mesas" class="w-full text-left px-6 py-3 text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-3"><i class="fas fa-desktop w-5 text-center"></i> Controle de Mesas</button>
@@ -346,24 +346,38 @@ window.onerror = function(msg, url, line) {
 
     <div id="view-mesas" class="view-section hidden">
     
-    <div class="mb-6 flex justify-between items-end">
-        <div>
-            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Controle de Mesas</h2>
-            <p class="text-sm text-slate-500 mt-1">Fila de jogos dinâmica e gestão do ginásio em tempo real</p>
+   <div class="mb-6 flex flex-col gap-4">
+        
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Controle de Mesas</h2>
+                <p class="text-sm text-slate-500 mt-1">Fila de jogos dinâmica a gestão do ginásio em tempo real</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                <label class="text-xs font-bold text-slate-600 uppercase">Qtd Mesas:</label>
+                <input type="number" id="tableCountInput" value="6" min="1" max="30" class="w-16 p-1 border-b-2 border-slate-300 text-center font-bold text-lg outline-none focus:border-orange-500 text-slate-800 transition-colors">
+                
+                <button onclick="generateTables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold transition-colors text-sm flex items-center">
+                    <i class="fas fa-sync-alt mr-2"></i> Gerar
+                </button>
+                
+                <button onclick="autoDistributeGames()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-sm text-sm flex items-center">
+                    <i class="fas fa-magic mr-2"></i> Distribuir
+                </button>
+            </div>
+            
+        </div>
+
+        <div class="bg-slate-100/80 p-4 rounded-xl border border-slate-200 shadow-inner">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center">
+                <i class="fas fa-filter text-orange-400 mr-2 text-sm"></i> 
+                Categorias em Jogo (Ative para enviar os confrontos para a fila das mesas):
+            </p>
+            <div id="gym-category-filters" class="flex flex-wrap gap-2">
+                </div>
         </div>
         
-        <div class="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border border-slate-200">
-            <label class="text-xs font-bold text-slate-600 uppercase">Qtd de Mesas Hoje:</label>
-            <input type="number" id="tableCountInput" value="6" min="1" max="30" class="w-16 p-1 border-b-2 border-slate-300 text-center font-bold text-lg outline-none focus:border-orange-500 text-slate-800">
-            
-            <button onclick="generateTables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded font-bold transition-colors shadow-sm text-sm">
-                <i class="fas fa-sync-alt mr-1"></i> Gerar Mesas
-            </button>
-            
-            <button onclick="autoDistributeGames()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-bold transition-colors shadow-sm text-sm">
-                <i class="fas fa-magic mr-1"></i> Distribuir Jogos
-            </button>
-        </div>
     </div>
 
     <div class="flex flex-col lg:flex-row gap-6 items-start">
@@ -653,6 +667,7 @@ function changeTournament() {
     currentTournamentId = document.getElementById('tournamentSelect').value;
     localStorage.setItem(ACTIVE_T_KEY, currentTournamentId);
     location.reload(); 
+    loadGymState();
 }
 
 function addNewTournament() {
@@ -2379,22 +2394,45 @@ function renderPodium() {
     }
 }
 
+
 // ==========================================
-// 6. GESTÃO DE MESAS E FILA DINÂMICA (AUTÔNOMA)
+// 6. GESTÃO DE MESAS E FILA DINÂMICA (AUTÔNOMA 6.1 - COM MEMÓRIA BLINDADA)
 // ==========================================
 let GymTables = [];
 let PendingQueue = [];
+let ActiveGymCategories = []; 
+let PrioritizedMatches = [];  
 
-// Carrega as mesas salvas na memória ao abrir o sistema
-function loadTables() {
-    const saved = localStorage.getItem('altm_tables_' + currentTournamentId);
+// A NOVA FUNÇÃO QUE PUXA TUDO DO BANCO
+function loadGymState() {
+    if (!currentTournamentId) return;
+    const saved = localStorage.getItem('altm_gym_state_' + currentTournamentId);
     if (saved) {
-        GymTables = JSON.parse(saved);
-        renderTables();
+        const state = JSON.parse(saved);
+        GymTables = state.tables || [];
+        ActiveGymCategories = state.activeCategories || [];
+        PrioritizedMatches = state.prioritized || [];
+    } else {
+        GymTables = [];
+        ActiveGymCategories = [];
+        PrioritizedMatches = [];
     }
+    renderGymFilters();
+    renderTables();
+    updateQueue();
 }
 
-// Cria as mesas quando você clica em "Gerar"
+// A NOVA FUNÇÃO QUE SALVA TUDO NO BANCO
+function saveGymState() {
+    if (!currentTournamentId) return;
+    const state = {
+        tables: GymTables,
+        activeCategories: ActiveGymCategories,
+        prioritized: PrioritizedMatches
+    };
+    localStorage.setItem('altm_gym_state_' + currentTournamentId, JSON.stringify(state));
+}
+
 function generateTables() {
     const count = parseInt(document.getElementById('tableCountInput').value) || 6;
     if (!confirm(`Gerar ${count} mesas no ginásio? Isso limpará a tela atual de mesas (não apaga os placares já lançados).`)) return;
@@ -2403,21 +2441,89 @@ function generateTables() {
     for (let i = 1; i <= count; i++) {
         GymTables.push({ id: i, status: 'free', matchInfo: null });
     }
-    saveTables();
+    saveGymState();
     renderTables();
     updateQueue();
 }
 
-function saveTables() {
-    localStorage.setItem('altm_tables_' + currentTournamentId, JSON.stringify(GymTables));
+// ==========================================
+// PAINEL DE DISJUNTORES E LUZES
+// ==========================================
+function renderGymFilters() {
+    const container = document.getElementById('gym-category-filters');
+    if (!container) return;
+
+    if (State.categories.length === 0) {
+        container.innerHTML = '<span class="text-xs text-slate-400">Nenhuma categoria criada no torneio.</span>';
+        return;
+    }
+
+    container.innerHTML = State.categories.map(cat => {
+        const isActive = ActiveGymCategories.includes(cat.id);
+        const btnClass = isActive ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-200';
+        
+        return `<button onclick="toggleGymCategory('${cat.id}')" class="px-4 py-1.5 text-xs font-bold rounded-full border transition-colors ${btnClass}">
+                    ${isActive ? '<i class="fas fa-check mr-1"></i> ' : ''}${cat.name}
+                </button>`;
+    }).join('');
 }
 
-// O MOTOR: Varre todo o sistema caçando jogos sem placar
+function toggleGymCategory(catId) {
+    if (ActiveGymCategories.includes(catId)) {
+        ActiveGymCategories = ActiveGymCategories.filter(id => id !== catId); 
+    } else {
+        ActiveGymCategories.push(catId); 
+    }
+    saveGymState(); // Salva a mudança no disjuntor!
+    renderGymFilters();
+    updateQueue();
+}
+
+function autoTurnOffFinishedCategories() {
+    let changed = false;
+    ActiveGymCategories.forEach(catId => {
+        let cat = State.categories.find(c => c.id === catId);
+        if (!cat) return;
+
+        if (cat.bracket && cat.bracket.rounds && cat.bracket.rounds.length > 0) {
+            let finalRoundIndex = cat.bracket.rounds.length - 1;
+            let finalMatch = cat.bracket.rounds[finalRoundIndex][0];
+
+            if (finalMatch && isMatchFinished(finalMatch.id, 'bracket')) {
+                ActiveGymCategories = ActiveGymCategories.filter(id => id !== catId);
+                showToast(`🏆 ${cat.name} encerrada! As mesas foram liberadas.`, 'success');
+                changed = true;
+            }
+        }
+    });
+
+    if (changed) {
+        saveGymState();
+        renderGymFilters();
+    }
+}
+
+// ==========================================
+// FILA VIP (FURAR A FILA)
+// ==========================================
+function prioritizeMatch(mid) {
+    if (!PrioritizedMatches.includes(mid)) {
+        PrioritizedMatches.push(mid);
+        saveGymState(); // Salva o VIP na memória!
+        updateQueue(); 
+        showToast('🔥 Jogo movido para o topo da fila!', 'success');
+    }
+}
+
+// ==========================================
+// MOTOR PRINCIPAL E ROBÔ
+// ==========================================
 function updateQueue() {
     PendingQueue = [];
     
     State.categories.forEach(cat => {
-        // 1. Procura na Fase de Grupos
+        if (!ActiveGymCategories.includes(cat.id)) return;
+
         if (cat.groups && cat.matches) {
             cat.matches.forEach(m => {
                 let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
@@ -2432,7 +2538,6 @@ function updateQueue() {
             });
         }
         
-        // 2. Procura no Mata-Mata
         if (cat.bracket && cat.bracket.rounds) {
             cat.bracket.rounds.forEach(round => {
                 round.forEach(m => {
@@ -2447,6 +2552,12 @@ function updateQueue() {
         }
     });
     
+    PendingQueue.sort((a, b) => {
+        let aPrio = PrioritizedMatches.includes(a.mid) ? 1 : 0;
+        let bPrio = PrioritizedMatches.includes(b.mid) ? 1 : 0;
+        return bPrio - aPrio; 
+    });
+    
     renderQueue();
 }
 
@@ -2454,7 +2565,6 @@ function isMatchOnTable(mid) {
     return GymTables.some(t => t.status === 'busy' && t.matchInfo && t.matchInfo.mid === mid);
 }
 
-// Pinta a Fila na tela
 function renderQueue() {
     const container = document.getElementById('queueContainer');
     document.getElementById('queue-count').innerText = `${PendingQueue.length} pendentes`;
@@ -2468,24 +2578,29 @@ function renderQueue() {
         return;
     }
     
-    container.innerHTML = PendingQueue.map((m, index) => `
-        <div class="bg-white p-3 rounded border border-slate-200 shadow-sm flex flex-col gap-1 relative overflow-hidden">
-            <div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>
+    container.innerHTML = PendingQueue.map((m, index) => {
+        let isVIP = PrioritizedMatches.includes(m.mid);
+        let borderClass = isVIP ? 'bg-red-500' : 'bg-orange-500';
+        let bgClass = isVIP ? 'bg-red-50' : 'bg-white';
+        let rankDisplay = isVIP ? '<i class="fas fa-fire text-red-500"></i> VIP' : `#${index + 1}`;
+
+        return `
+        <div class="${bgClass} p-3 rounded border border-slate-200 shadow-sm flex flex-col gap-1 relative overflow-hidden transition-colors">
+            <div class="absolute left-0 top-0 bottom-0 w-1 ${borderClass}"></div>
             <div class="flex justify-between items-center pl-2">
-                <span class="text-[10px] font-bold text-orange-500 uppercase">${m.catName} • ${m.phase}</span>
-                <span class="text-[10px] text-slate-400 font-bold">#${index + 1}</span>
+                <span class="text-[10px] font-bold ${isVIP ? 'text-red-600' : 'text-orange-500'} uppercase">${m.catName} • ${m.phase}</span>
+                <span class="text-[10px] text-slate-500 font-black">${rankDisplay}</span>
             </div>
-            <div class="font-bold text-slate-700 text-sm text-center mt-1 pl-2">${m.p1Name} <span class="text-slate-400 text-xs mx-1">X</span> ${m.p2Name}</div>
+            
+            <div class="flex justify-between items-center mt-1 pl-2">
+                <div class="font-bold text-slate-700 text-sm">${m.p1Name} <span class="text-slate-400 text-xs mx-1">X</span> ${m.p2Name}</div>
+                ${!isVIP ? `<button onclick="prioritizeMatch('${m.mid}')" class="text-[10px] bg-slate-200 hover:bg-red-100 hover:text-red-600 text-slate-500 px-2 py-1 rounded font-bold transition-colors" title="Furar a Fila">🔥 Topo</button>` : ''}
+            </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
-
-// ==========================================
-// NOVAS FUNÇÕES: O CÉREBRO AUTÔNOMO
-// ==========================================
-
-// Pinta as Mesas na tela (AGORA SEM BOTÕES, APENAS VISUAL LIMPO)
 function renderTables() {
     const container = document.getElementById('tablesContainer');
     if (GymTables.length === 0) return;
@@ -2511,11 +2626,8 @@ function renderTables() {
     }).join('');
 }
 
-// Distribui a primeira leva de jogos para as mesas vazias no botão "Distribuir Jogos"
 function autoDistributeGames() {
-    if (PendingQueue.length === 0) {
-        updateQueue(); // Atualiza a fila por garantia
-    }
+    if (PendingQueue.length === 0) updateQueue(); 
     if (PendingQueue.length === 0) {
         showToast('Fila vazia! Não há jogos pendentes.', 'info');
         return;
@@ -2531,31 +2643,29 @@ function autoDistributeGames() {
         }
     });
     
-    saveTables();
+    saveGymState();
     renderTables();
     renderQueue();
     if(distributed > 0) showToast(`${distributed} jogos enviados para as mesas!`, 'success');
 }
 
-// O ROBÔ INVISÍVEL: Verifica se o jogo da mesa acabou e avança a fila sozinho
 function checkAndAdvanceTables() {
+    autoTurnOffFinishedCategories(); 
     let updated = false;
     
-    // 1. Verifica todas as mesas ocupadas. O jogo já tem placar?
     GymTables.forEach(t => {
         if (t.status === 'busy' && t.matchInfo) {
             let isFinished = isMatchFinished(t.matchInfo.mid, t.matchInfo.type);
             if (isFinished) {
-                t.status = 'free'; // O jogo acabou, libera a mesa!
+                t.status = 'free'; 
                 t.matchInfo = null;
                 updated = true;
             }
         }
     });
 
-    // 2. Se alguma mesa ficou livre, puxa o próximo da fila automaticamente
     if (updated) {
-        updateQueue(); // Recalcula a fila
+        updateQueue(); 
         GymTables.forEach(t => {
             if (t.status === 'free' && PendingQueue.length > 0) {
                 let match = PendingQueue.shift();
@@ -2564,14 +2674,12 @@ function checkAndAdvanceTables() {
             }
         });
         
-        saveTables();
+        saveGymState();
         renderTables();
         renderQueue();
-        showToast('Fila andou! Mesas atualizadas automaticamente.', 'success');
     }
 }
 
-// Função auxiliar: Vai no banco de dados ver se o jogo já tem placar ou WO
 function isMatchFinished(mid, type) {
     let m;
     for (let cat of State.categories) {
@@ -2586,14 +2694,13 @@ function isMatchFinished(mid, type) {
             if(m) break;
         }
     }
-    if(!m) return true; // Se o jogo sumiu (ex: você apagou a categoria), libera a mesa por segurança
+    if(!m) return true; 
 
     let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
     let isWO = m.winner !== undefined && m.winner !== null;
     
     return hasScore || isWO;
 }
-
 </script>
 </body>
 </html>
