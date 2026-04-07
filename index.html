@@ -110,8 +110,8 @@ window.onerror = function(msg, url, line) {
 <div class="flex h-full">
     <aside class="w-72 bg-slate-900 text-white flex flex-col shadow-xl hidden md:flex">
         <div class="p-6 border-b border-slate-800 bg-slate-950">
-            <h1 class="text-2xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-2"></i>Sistema de Torneios</h1>
-            <p class="text-xs text-slate-400 mt-1">Versão 5.0 </p>
+            <h1 class="text-1xl font-extrabold text-orange-500 tracking-tight"><i class="fas fa-table-tennis mr-1"></i>Sistema de Torneios</h1>
+            
         </div>
         <div class="p-4 border-b border-slate-800 bg-slate-900">
             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Criar Torneio</label>
@@ -130,16 +130,13 @@ window.onerror = function(msg, url, line) {
             <button onclick="addNewCategory()" class="w-full mt-2 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 py-1 rounded border border-dashed border-slate-600"> Nova Categoria</button>
         </div>
         <nav class="flex-1 overflow-y-auto py-4">
-            <button onclick="switchTab('ratingreport')" id="nav-ratingreport" class="nav-item w-full text-left px-4 py-3 hover:bg-slate-800 transition border-l-4 border-transparent mt-2">
-    <i class="fas fa-chart-line w-4 text-purple-400"></i> Análise Ranking e Rating
-</button>
+            <button onclick="switchTab('mesas')" id="btn-tab-mesas" class="w-full text-left px-6 py-3 text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-3"><i class="fas fa-desktop w-5 text-center"></i> Controle de Mesas</button>
+            <button onclick="switchTab('ratingreport')" id="nav-ratingreport" class="nav-item w-full text-left px-4 py-3 hover:bg-slate-800 transition border-l-4 border-transparent mt-2"><i class="fas fa-chart-line w-4 text-purple-400"></i> Análise Ranking e Rating</button>
             <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent active-nav"><i class="fas fa-chart-pie w-6"></i> Visão Geral</button>
             <button onclick="switchTab('registration')" id="nav-registration" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-users w-6"></i> Inscrições</button>
             <button onclick="switchTab('groups')" id="nav-groups" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-layer-group w-6"></i> Fase de Grupos</button>
             <button onclick="switchTab('bracket')" id="nav-bracket" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent"><i class="fas fa-trophy w-6"></i> Mata-Mata</button>
-             <button onclick="switchTab('podium')" id="nav-podium" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent hidden">
-               <i class="fas fa-trophy w-6"></i> Pódio
-            </button>
+             <button onclick="switchTab('podium')" id="nav-podium" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition border-l-4 border-transparent hidden"><i class="fas fa-trophy w-6"></i> Pódio</button>
         </nav>
         <div class="p-4 border-t border-slate-800 grid grid-cols-2 gap-2">
     <button onclick="downloadBackup()" class="text-xs bg-slate-800 text-blue-400 p-2 rounded hover:bg-slate-700 transition flex items-center justify-center gap-1">
@@ -163,9 +160,7 @@ window.onerror = function(msg, url, line) {
             <div class="flex gap-2">
                 
                 <button onclick="resetSystem()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200"><i class="fas fa-trash-alt mr-1"></i> Reset Tudo</button>
-                 <button onclick="deleteCurrentCategory()" class="bg-red-50 text-red-500 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100" title="Apagar a Categoria Atual">
-        <i class="fas fa-trash"></i> Apagar Categoria
-    </button>
+                 <button onclick="deleteCurrentCategory()" class="bg-red-50 text-red-500 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100" title="Apagar a Categoria Atual"><i class="fas fa-trash"></i> Apagar Categoria</button>
             </div>
         </header>
 
@@ -348,6 +343,57 @@ window.onerror = function(msg, url, line) {
             </div>
         </div>
     </div>
+
+    <div id="view-mesas" class="view-section hidden">
+    
+    <div class="mb-6 flex justify-between items-end">
+        <div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Controle de Mesas</h2>
+            <p class="text-sm text-slate-500 mt-1">Fila de jogos dinâmica e gestão do ginásio em tempo real</p>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border border-slate-200">
+            <label class="text-xs font-bold text-slate-600 uppercase">Qtd de Mesas Hoje:</label>
+            <input type="number" id="tableCountInput" value="6" min="1" max="30" class="w-16 p-1 border-b-2 border-slate-300 text-center font-bold text-lg outline-none focus:border-orange-500 text-slate-800">
+            
+            <button onclick="generateTables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded font-bold transition-colors shadow-sm text-sm">
+                <i class="fas fa-sync-alt mr-1"></i> Gerar Mesas
+            </button>
+            
+            <button onclick="autoDistributeGames()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-bold transition-colors shadow-sm text-sm">
+                <i class="fas fa-magic mr-1"></i> Distribuir Jogos
+            </button>
+        </div>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-6 items-start">
+        
+        <div class="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold"><i class="fas fa-list-ol mr-2 text-orange-400"></i> Fila de Jogos</h3>
+                <span class="bg-slate-700 text-xs px-2 py-1 rounded font-bold" id="queue-count">0 pendentes</span>
+            </div>
+            
+            <div id="queueContainer" class="p-4 bg-slate-50 space-y-3">
+                <div class="text-center text-slate-400 mt-10">
+                    <i class="fas fa-table-tennis text-3xl mb-3 opacity-50"></i>
+                    <p class="text-sm font-semibold">Nenhum jogo na fila.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-2/3">
+            <div id="tablesContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div class="col-span-full flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50">
+                    <div class="text-orange-400 text-4xl mb-4"><i class="fas fa-arrow-up"></i></div>
+                    <h4 class="text-lg font-bold text-slate-700 mb-1">Ginásio Vazio</h4>
+                    <p class="text-sm text-slate-500 text-center">Digite a quantidade de mesas ali em cima e clique em "Gerar Mesas" para preparar o espaço.</p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
 
 </div>
 
@@ -1810,6 +1856,7 @@ function applyWO(winner) {
     document.getElementById(`m_s4_p1`).value = ''; document.getElementById(`m_s4_p2`).value = '';
     document.getElementById(`m_s5_p1`).value = ''; document.getElementById(`m_s5_p2`).value = '';
     confirmScore(); // Saves automatically
+    checkAndAdvanceTables();
 }
 
 function confirmScore() {
@@ -1976,6 +2023,7 @@ function confirmScore() {
             setTimeout(() => showPodium(), 500);
         }
     }
+    checkAndAdvanceTables();
 }
 
 // PDF ENGINE & TOAST
@@ -2331,7 +2379,220 @@ function renderPodium() {
     }
 }
 
+// ==========================================
+// 6. GESTÃO DE MESAS E FILA DINÂMICA (AUTÔNOMA)
+// ==========================================
+let GymTables = [];
+let PendingQueue = [];
 
+// Carrega as mesas salvas na memória ao abrir o sistema
+function loadTables() {
+    const saved = localStorage.getItem('altm_tables_' + currentTournamentId);
+    if (saved) {
+        GymTables = JSON.parse(saved);
+        renderTables();
+    }
+}
+
+// Cria as mesas quando você clica em "Gerar"
+function generateTables() {
+    const count = parseInt(document.getElementById('tableCountInput').value) || 6;
+    if (!confirm(`Gerar ${count} mesas no ginásio? Isso limpará a tela atual de mesas (não apaga os placares já lançados).`)) return;
+    
+    GymTables = [];
+    for (let i = 1; i <= count; i++) {
+        GymTables.push({ id: i, status: 'free', matchInfo: null });
+    }
+    saveTables();
+    renderTables();
+    updateQueue();
+}
+
+function saveTables() {
+    localStorage.setItem('altm_tables_' + currentTournamentId, JSON.stringify(GymTables));
+}
+
+// O MOTOR: Varre todo o sistema caçando jogos sem placar
+function updateQueue() {
+    PendingQueue = [];
+    
+    State.categories.forEach(cat => {
+        // 1. Procura na Fase de Grupos
+        if (cat.groups && cat.matches) {
+            cat.matches.forEach(m => {
+                let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
+                let isWO = m.winner !== undefined && m.winner !== null;
+                
+                if (m.p1Id && m.p2Id && !hasScore && !isWO && !isMatchOnTable(m.id)) {
+                    let g = cat.groups.find(x => x.id === m.groupId);
+                    let n1 = g ? g.players.find(x => x.id === m.p1Id)?.name : 'P1';
+                    let n2 = g ? g.players.find(x => x.id === m.p2Id)?.name : 'P2';
+                    PendingQueue.push({ mid: m.id, type: 'group', catName: cat.name, phase: 'Grupos', p1Name: n1, p2Name: n2 });
+                }
+            });
+        }
+        
+        // 2. Procura no Mata-Mata
+        if (cat.bracket && cat.bracket.rounds) {
+            cat.bracket.rounds.forEach(round => {
+                round.forEach(m => {
+                    let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
+                    let isWO = m.winner !== undefined && m.winner !== null;
+                    
+                    if (m.p1 && m.p2 && m.p1.name && m.p2.name && !hasScore && !isWO && !isMatchOnTable(m.id)) {
+                         PendingQueue.push({ mid: m.id, type: 'bracket', catName: cat.name, phase: 'Mata-Mata', p1Name: m.p1.name, p2Name: m.p2.name });
+                    }
+                });
+            });
+        }
+    });
+    
+    renderQueue();
+}
+
+function isMatchOnTable(mid) {
+    return GymTables.some(t => t.status === 'busy' && t.matchInfo && t.matchInfo.mid === mid);
+}
+
+// Pinta a Fila na tela
+function renderQueue() {
+    const container = document.getElementById('queueContainer');
+    document.getElementById('queue-count').innerText = `${PendingQueue.length} pendentes`;
+    
+    if (PendingQueue.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-slate-400 mt-10">
+                <i class="fas fa-table-tennis text-3xl mb-3 opacity-50"></i>
+                <p class="text-sm font-semibold">Nenhum jogo na fila.</p>
+            </div>`;
+        return;
+    }
+    
+    container.innerHTML = PendingQueue.map((m, index) => `
+        <div class="bg-white p-3 rounded border border-slate-200 shadow-sm flex flex-col gap-1 relative overflow-hidden">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>
+            <div class="flex justify-between items-center pl-2">
+                <span class="text-[10px] font-bold text-orange-500 uppercase">${m.catName} • ${m.phase}</span>
+                <span class="text-[10px] text-slate-400 font-bold">#${index + 1}</span>
+            </div>
+            <div class="font-bold text-slate-700 text-sm text-center mt-1 pl-2">${m.p1Name} <span class="text-slate-400 text-xs mx-1">X</span> ${m.p2Name}</div>
+        </div>
+    `).join('');
+}
+
+
+// ==========================================
+// NOVAS FUNÇÕES: O CÉREBRO AUTÔNOMO
+// ==========================================
+
+// Pinta as Mesas na tela (AGORA SEM BOTÕES, APENAS VISUAL LIMPO)
+function renderTables() {
+    const container = document.getElementById('tablesContainer');
+    if (GymTables.length === 0) return;
+    
+    container.innerHTML = GymTables.map(t => {
+        if (t.status === 'free') {
+            return `
+            <div class="bg-white border-2 border-green-400 rounded-xl p-4 shadow-sm flex flex-col items-center justify-center text-center min-h-[140px] relative overflow-hidden">
+                <div class="absolute top-0 w-full bg-green-400 text-white text-[10px] font-bold py-1">MESA ${t.id}</div>
+                <div class="text-green-500 font-bold text-xl mt-4"><i class="fas fa-check-circle"></i> LIVRE</div>
+                <p class="text-xs text-slate-400 mt-2">Aguardando próximo jogo...</p>
+            </div>`;
+        } else {
+            return `
+            <div class="bg-slate-800 border-2 border-orange-500 rounded-xl p-4 shadow-sm flex flex-col items-center justify-center text-center min-h-[140px] relative overflow-hidden">
+                <div class="absolute top-0 w-full bg-orange-500 text-white text-[10px] font-bold py-1">MESA ${t.id} • EM JOGO</div>
+                <div class="text-orange-400 text-[10px] font-bold uppercase mt-4 mb-1">${t.matchInfo.catName}</div>
+                <div class="text-white font-black text-sm w-full truncate px-2">${t.matchInfo.p1Name}</div>
+                <div class="text-slate-400 text-xs font-bold italic">VS</div>
+                <div class="text-white font-black text-sm w-full truncate px-2 mb-2">${t.matchInfo.p2Name}</div>
+            </div>`;
+        }
+    }).join('');
+}
+
+// Distribui a primeira leva de jogos para as mesas vazias no botão "Distribuir Jogos"
+function autoDistributeGames() {
+    if (PendingQueue.length === 0) {
+        updateQueue(); // Atualiza a fila por garantia
+    }
+    if (PendingQueue.length === 0) {
+        showToast('Fila vazia! Não há jogos pendentes.', 'info');
+        return;
+    }
+    
+    let distributed = 0;
+    GymTables.forEach(t => {
+        if (t.status === 'free' && PendingQueue.length > 0) {
+            let match = PendingQueue.shift();
+            t.status = 'busy';
+            t.matchInfo = match;
+            distributed++;
+        }
+    });
+    
+    saveTables();
+    renderTables();
+    renderQueue();
+    if(distributed > 0) showToast(`${distributed} jogos enviados para as mesas!`, 'success');
+}
+
+// O ROBÔ INVISÍVEL: Verifica se o jogo da mesa acabou e avança a fila sozinho
+function checkAndAdvanceTables() {
+    let updated = false;
+    
+    // 1. Verifica todas as mesas ocupadas. O jogo já tem placar?
+    GymTables.forEach(t => {
+        if (t.status === 'busy' && t.matchInfo) {
+            let isFinished = isMatchFinished(t.matchInfo.mid, t.matchInfo.type);
+            if (isFinished) {
+                t.status = 'free'; // O jogo acabou, libera a mesa!
+                t.matchInfo = null;
+                updated = true;
+            }
+        }
+    });
+
+    // 2. Se alguma mesa ficou livre, puxa o próximo da fila automaticamente
+    if (updated) {
+        updateQueue(); // Recalcula a fila
+        GymTables.forEach(t => {
+            if (t.status === 'free' && PendingQueue.length > 0) {
+                let match = PendingQueue.shift();
+                t.status = 'busy';
+                t.matchInfo = match;
+            }
+        });
+        
+        saveTables();
+        renderTables();
+        renderQueue();
+        showToast('Fila andou! Mesas atualizadas automaticamente.', 'success');
+    }
+}
+
+// Função auxiliar: Vai no banco de dados ver se o jogo já tem placar ou WO
+function isMatchFinished(mid, type) {
+    let m;
+    for (let cat of State.categories) {
+        if(type === 'group' && cat.groups) {
+            m = cat.matches.find(x => x.id === mid);
+            if(m) break;
+        } else if (type === 'bracket' && cat.bracket && cat.bracket.rounds) {
+            cat.bracket.rounds.forEach(r => {
+                let found = r.find(x => x.id === mid);
+                if(found) m = found;
+            });
+            if(m) break;
+        }
+    }
+    if(!m) return true; // Se o jogo sumiu (ex: você apagou a categoria), libera a mesa por segurança
+
+    let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
+    let isWO = m.winner !== undefined && m.winner !== null;
+    
+    return hasScore || isWO;
+}
 
 </script>
 </body>
