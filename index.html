@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torneios Pro 5.2 - Ultimate Edition</title>
+    <title>Torneios Pro - Ultimate Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -372,7 +372,7 @@ window.onerror = function(msg, url, line) {
         <div class="bg-slate-100/80 p-4 rounded-xl border border-slate-200 shadow-inner">
             <p class="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center">
                 <i class="fas fa-filter text-orange-400 mr-2 text-sm"></i> 
-                Categorias em Jogo (Ative para enviar os confrontos para a fila das mesas):
+                Categorias em Jogo (Clique na Etapa ou Categoria para iniciar a fila das mesas):
             </p>
             <div id="gym-category-filters" class="flex flex-wrap gap-2">
                 </div>
@@ -907,6 +907,7 @@ function switchTab(tabId) {
     if(tabId === 'registration') renderPlayersList();
     if(tabId === 'dashboard') updateDashboard();
     if(tabId === 'podium') renderPodium();
+    if(tabId === 'mesas') loadGymState();
     
     // ABA DE RATING - CARREGAMENTO FORÇADO
     if(tabId === 'ratingreport') {
@@ -1772,12 +1773,6 @@ function generateBracketPreview() {
     
     // RENDERIZA HTML PREVIEW
     return `
-        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
-            <p class="text-sm text-yellow-800">
-                <i class="fas fa-eye mr-2"></i>
-                <strong>PREVIEW:</strong> Chaveamento fixo de 3 grupos (CBTM).
-            </p>
-        </div>
         ${rounds.map((r, i) => {
             const roundsLeft = rounds.length - i;
             let name = `Rodada ${i+1}`;
@@ -2041,114 +2036,160 @@ function confirmScore() {
     checkAndAdvanceTables();
 }
 
-// PDF ENGINE & TOAST
+// PDF ENGINE: Súmulas Compactas (4 por página) e Inteligentes
 function printScoresheets(phase) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const cat = getCurrentCategory();
     let matchesToPrint = [];
 
-    // SE A FASE FOR 'groups', VAMOS IMPRIMIR OS JOGOS REAIS DA FASE DE GRUPOS
+    // FASE DE GRUPOS
     if (phase === 'groups') {
         if (!cat.matches || cat.matches.length === 0) {
-            showToast('Nenhum jogo de grupo encontrado.', 'error');
-            return;
+            showToast('Nenhum jogo de grupo encontrado.', 'error'); return;
         }
-
         cat.matches.forEach(m => {
             if (m.p1Id !== 'bye' && m.p2Id !== 'bye') {
                 const p1Name = cat.players.find(p => p.id === m.p1Id)?.name || 'Desconhecido';
                 const p2Name = cat.players.find(p => p.id === m.p2Id)?.name || 'Desconhecido';
                 const groupName = cat.groups.find(g => g.id === m.groupId)?.name || 'Grupo';
-                
-                matchesToPrint.push({ 
-                    p1: p1Name, 
-                    p2: p2Name, 
-                    info: `Fase de Grupos - ${groupName}` 
-                });
+                matchesToPrint.push({ p1: p1Name, p2: p2Name, info: `Fase de Grupos - ${groupName}` });
             }
         });
     } 
-    // SE A FASE FOR 'bracket' (MATA-MATA)
+    // MATA-MATA (CHAVES)
     else if (phase === 'bracket') {
+        let targetRounds = [];
         
-        // Se a chave AINDA NÃO FOI SORTEADA no sistema, fazemos um PREVIEW genérico!
+        // 1. SE FOR PREVIEW (Antes de gerar o mata-mata oficial)
         if (!cat.bracket || !cat.bracket.rounds || cat.bracket.rounds.length === 0) {
-            
             if(!cat.groups || cat.groups.length === 0) {
-                showToast('É necessário ter grupos para gerar o Preview.', 'error');
-                return;
+                showToast('É necessário ter grupos para gerar o Preview.', 'error'); return;
             }
-
-            // Cria um cruzamento fictício: 1º do A x 2º do C, etc...
-            const firsts = cat.groups.map(g => `1º ${g.name}`);
-            const seconds = cat.groups.map(g => `2º ${g.name}`);
-
-            for(let i = 0; i < firsts.length; i++) {
-                const p1 = firsts[i];
-                const p2 = seconds[(seconds.length - 1 - i)] || '___________________';
-                matchesToPrint.push({ p1, p2, info: `Mata-Mata (Chaveamento) - Jogo ${i+1}` });
+            
+            // Simula a chave matematicamente para gerar os papéis certos
+            let qualifiers = [];
+            if (cat.groups.length === 3) {
+                 qualifiers = [ {name:'1º Grupo A'}, {name:'BYE'}, {name:'2º Grupo B'}, {name:'2º Grupo C'}, {name:'1º Grupo C'}, {name:'2º Grupo A'}, {name:'BYE'}, {name:'1º Grupo B'} ];
+            } else {
+                 cat.groups.forEach(g => { qualifiers.push({name:`1º ${g.name}`}); qualifiers.push({name:`2º ${g.name}`}); });
             }
-
-            // Adiciona uma súmula em branco extra para Semifinal/Final
-            matchesToPrint.push({ p1: 'Vencedor Jogo 1', p2: 'Vencedor Jogo 2', info: 'Mata-Mata - Fase Seguinte' });
-            matchesToPrint.push({ p1: 'Vencedor Jogo 3', p2: 'Vencedor Jogo 4', info: 'Mata-Mata - Fase Seguinte' });
-
+            
+            let size = 2; while(size < qualifiers.length) size *= 2;
+            let mId = 1; let r1 = [];
+            
+            // Rodada 1 do Preview
+            for(let i=0; i<size; i+=2) {
+                let p1 = qualifiers[i] || {name:'BYE'};
+                let p2 = qualifiers[size-1-i] || {name:'BYE'};
+                r1.push({ p1, p2, id: `prev-${mId++}` });
+            }
+            targetRounds.push(r1);
+            
+            // Restante das rodadas simuladas
+            let totalR = Math.log2(size);
+            for(let r=2; r<=totalR; r++) {
+                let prevR = targetRounds[targetRounds.length-1];
+                let nextR = [];
+                for(let i=0; i<prevR.length; i+=2) {
+                    let m1 = prevR[i], m2 = prevR[i+1];
+                    let isP1Bye = m1.p1.name === 'BYE' || m1.p2.name === 'BYE';
+                    let isP2Bye = m2.p1.name === 'BYE' || m2.p2.name === 'BYE';
+                    
+                    let p1n = isP1Bye ? (m1.p1.name === 'BYE' ? m1.p2.name : m1.p1.name) : `Venc. J${m1.id.split('-').pop()}`;
+                    let p2n = isP2Bye ? (m2.p1.name === 'BYE' ? m2.p2.name : m2.p1.name) : `Venc. J${m2.id.split('-').pop()}`;
+                    
+                    nextR.push({ p1: {name: p1n}, p2: {name: p2n}, id: `prev-${mId++}` });
+                }
+                targetRounds.push(nextR);
+            }
         } else {
-            // SE A CHAVE JÁ FOI SORTEADA no sistema, imprime os nomes reais
-            cat.bracket.rounds.forEach((r, idx) => {
-                const roundsLeft = cat.bracket.rounds.length - idx;
-                let faseNome = `Rodada ${idx+1}`;
-                if (roundsLeft === 1) faseNome = 'Final';
-                else if (roundsLeft === 2) faseNome = 'Semifinal';
-                else if (roundsLeft === 3) faseNome = 'Quartas de Final';
-                else if (roundsLeft === 4) faseNome = 'Oitavas de Final';
-                else if (roundsLeft === 5) faseNome = '16 Avos';
-                else if (roundsLeft === 6) faseNome = '32 Avos';
-
-                r.forEach(m => {
-                    if (m.p1.id !== 'bye' && m.p2.id !== 'bye') {
-                        let jogoNum = m.id.split('-').pop().replace('3rd', '3º');
-                        let infoStr = `${faseNome} - Jogo ${jogoNum}`;
-                        matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
-                    }
-                });
-            });
+            // 2. CHAVE OFICIAL JÁ GERADA (Puxa os dados reais)
+            targetRounds = cat.bracket.rounds;
         }
+
+        // EXTRAI OS JOGOS E NOMEIA AS FASES CORRETAMENTE
+        targetRounds.forEach((r, idx) => {
+            const roundsLeft = targetRounds.length - idx;
+            let faseNome = `Rodada ${idx+1}`;
+            if (roundsLeft === 1) faseNome = 'FINAL';
+            else if (roundsLeft === 2) faseNome = 'SEMIFINAL';
+            else if (roundsLeft === 3) faseNome = 'QUARTAS DE FINAL';
+            else if (roundsLeft === 4) faseNome = 'OITAVAS DE FINAL';
+            else if (roundsLeft === 5) faseNome = '16 AVOS';
+            
+            r.forEach(m => {
+                // Ignora se for jogo Fantasma ou Contra BYE
+                if (m.p1.name !== 'BYE' && m.p2.name !== 'BYE' && m.p1.id !== 'bye' && m.p2.id !== 'bye') {
+                    let jogoNum = m.id ? m.id.split('-').pop().replace('3rd', '3º') : '';
+                    let infoStr = `${faseNome}${jogoNum ? ' - Jogo ' + jogoNum : ''}`;
+                    if (m.isThirdPlace) infoStr = 'DISPUTA DE 3º LUGAR';
+                    
+                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
+                }
+            });
+        });
     }
 
-    // IMPRESSÃO DE FATO (Criação do PDF)
     if (matchesToPrint.length === 0) { showToast('Sem jogos para imprimir.', 'error'); return; }
 
+    // ===============================================
+    // DESIGN COMPACTO: 4 SÚMULAS POR PÁGINA (A4)
+    // ===============================================
     matchesToPrint.forEach((m, i) => {
-        if (i % 2 === 0 && i > 0) doc.addPage();
-        const yOffset = (i % 2) * 140; 
-        doc.setFillColor(240, 240, 240); 
-        doc.rect(10, 10 + yOffset, 190, 130, 'F');
-        doc.setFontSize(16); 
-        doc.setTextColor(0); 
-        doc.text("SÚMULA DE JOGO", 105, 20 + yOffset, { align: 'center' });
-        doc.setFontSize(12); 
-        doc.text(cat.name + " | " + m.info, 105, 28 + yOffset, { align: 'center' });
-        doc.rect(20, 40 + yOffset, 170, 10);
-        doc.text("SET 1", 90, 47 + yOffset); 
-        doc.text("SET 2", 110, 47 + yOffset); 
-        doc.text("SET 3", 130, 47 + yOffset); 
-        doc.text("SET 4", 150, 47 + yOffset); 
-        doc.text("SET 5", 170, 47 + yOffset);
-        doc.rect(20, 50 + yOffset, 170, 15); 
-        doc.setFontSize(12); 
-        doc.text(m.p1, 25, 60 + yOffset);
-        doc.rect(20, 65 + yOffset, 170, 15); 
-        doc.text(m.p2, 25, 75 + yOffset);
+        if (i % 4 === 0 && i > 0) doc.addPage(); // Quebra a página a cada 4 súmulas
         
-        for (let x = 85; x <= 190; x += 20) {
-            doc.line(x, 40 + yOffset, x, 80 + yOffset);
-        }
+        const yOffset = (i % 4) * 70; // Espaçamento perfeito entre elas
         
+        // Fundo da Súmula (Box)
+        doc.setFillColor(248, 250, 252); 
+        doc.setDrawColor(203, 213, 225); 
+        doc.rect(10, 10 + yOffset, 190, 64, 'FD'); 
+        
+        // Cabeçalho
+        doc.setFontSize(12); 
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42); 
+        doc.text("SÚMULA DE JOGO", 105, 17 + yOffset, { align: 'center' });
+        
+        // Subtítulo (Categoria e Fase)
         doc.setFontSize(10); 
-        doc.text("Vencedor: ________________________", 20, 100 + yOffset); 
-        doc.text("Assinatura Árbitro: ________________", 110, 100 + yOffset);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105); 
+        doc.text(`${cat.name} | ${m.info}`, 105, 23 + yOffset, { align: 'center' });
+        
+        // Tabela Principal
+        doc.setDrawColor(148, 163, 184); 
+        doc.rect(15, 28 + yOffset, 180, 24); 
+        
+        // Linhas Horizontais da Tabela
+        doc.line(15, 36 + yOffset, 195, 36 + yOffset); 
+        doc.line(15, 44 + yOffset, 195, 44 + yOffset); 
+        
+        // Linhas Verticais da Tabela (Colunas dos Sets)
+        let xCols = [95, 115, 135, 155, 175];
+        xCols.forEach(x => doc.line(x, 28 + yOffset, x, 52 + yOffset));
+        
+        // Textos do Cabeçalho da Tabela
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("ATLETA / DUPLA", 55, 33 + yOffset, { align: 'center' });
+        doc.text("1º SET", 105, 33 + yOffset, { align: 'center' });
+        doc.text("2º SET", 125, 33 + yOffset, { align: 'center' });
+        doc.text("3º SET", 145, 33 + yOffset, { align: 'center' });
+        doc.text("4º SET", 165, 33 + yOffset, { align: 'center' });
+        doc.text("5º SET", 185, 33 + yOffset, { align: 'center' });
+
+        // Nomes dos Jogadores
+        doc.setFontSize(10);
+        doc.text(m.p1, 18, 41 + yOffset);
+        doc.text(m.p2, 18, 49 + yOffset);
+        
+        // Rodapé (Assinaturas)
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text("Vencedor: _________________________________", 15, 65 + yOffset); 
+        doc.text("Árbitro / Mesa: _________________________________", 115, 65 + yOffset);
     });
 
     doc.save(`sumulas_${phase}.pdf`);
@@ -2524,6 +2565,7 @@ function updateQueue() {
     State.categories.forEach(cat => {
         if (!ActiveGymCategories.includes(cat.id)) return;
 
+        // 1. Procura na Fase de Grupos
         if (cat.groups && cat.matches) {
             cat.matches.forEach(m => {
                 let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
@@ -2533,30 +2575,64 @@ function updateQueue() {
                     let g = cat.groups.find(x => x.id === m.groupId);
                     let n1 = g ? g.players.find(x => x.id === m.p1Id)?.name : 'P1';
                     let n2 = g ? g.players.find(x => x.id === m.p2Id)?.name : 'P2';
-                    PendingQueue.push({ mid: m.id, type: 'group', catName: cat.name, phase: 'Grupos', p1Name: n1, p2Name: n2 });
+                    // Adicionamos a "specificPhase" e o "roundWeight" (-1 para grupos vir primeiro)
+                    PendingQueue.push({ mid: m.id, type: 'group', catName: cat.name, phase: 'Grupos', specificPhase: 'Fase de Grupos', roundWeight: -1, p1Name: n1, p2Name: n2 });
                 }
             });
         }
         
+        // 2. Procura no Mata-Mata
         if (cat.bracket && cat.bracket.rounds) {
-            cat.bracket.rounds.forEach(round => {
+            const totalRounds = cat.bracket.rounds.length;
+            cat.bracket.rounds.forEach((round, roundIdx) => {
+                
+                // DESCUBRE O NOME DA FASE AUTOMATICAMENTE
+                let roundsLeft = totalRounds - roundIdx;
+                let specificPhase = `Rodada ${roundIdx + 1}`;
+                if (roundsLeft === 1) specificPhase = 'Final';
+                else if (roundsLeft === 2) specificPhase = 'Semifinal';
+                else if (roundsLeft === 3) specificPhase = 'Quartas de Final';
+                else if (roundsLeft === 4) specificPhase = 'Oitavas de Final';
+                else if (roundsLeft === 5) specificPhase = '16 Avos';
+                else if (roundsLeft === 6) specificPhase = '32 Avos';
+
                 round.forEach(m => {
                     let hasScore = m.setScores && m.setScores.length > 0 && m.setScores[0].p1 !== undefined && m.setScores[0].p1 !== "";
                     let isWO = m.winner !== undefined && m.winner !== null;
                     
-                    if (m.p1 && m.p2 && m.p1.name && m.p2.name && !hasScore && !isWO && !isMatchOnTable(m.id)) {
-                         PendingQueue.push({ mid: m.id, type: 'bracket', catName: cat.name, phase: 'Mata-Mata', p1Name: m.p1.name, p2Name: m.p2.name });
+                    if (m.p1 && m.p2 && m.p1.id && m.p2.id && m.p1.id !== 'bye' && m.p2.id !== 'bye' && !hasScore && !isWO && !isMatchOnTable(m.id)) {
+                         let phaseName = m.isThirdPlace ? 'Disputa de 3º Lugar' : specificPhase;
+                         let weight = m.isThirdPlace ? roundIdx - 0.5 : roundIdx; // 3º lugar joga antes da Final
+
+                         PendingQueue.push({ mid: m.id, type: 'bracket', catName: cat.name, phase: 'Mata-Mata', specificPhase: phaseName, roundWeight: weight, p1Name: m.p1.name, p2Name: m.p2.name });
                     }
                 });
             });
         }
     });
     
+    // ORDENA A FILA: 1º Foguinho VIP, 2º Grupos, 3º Oitavas, 4º Quartas...
     PendingQueue.sort((a, b) => {
         let aPrio = PrioritizedMatches.includes(a.mid) ? 1 : 0;
         let bPrio = PrioritizedMatches.includes(b.mid) ? 1 : 0;
-        return bPrio - aPrio; 
+        if (aPrio !== bPrio) return bPrio - aPrio; 
+
+        return a.roundWeight - b.roundWeight; 
     });
+
+    // O ROBÔ AUTÔNOMO: Puxa o jogo se a mesa estiver vazia
+    let hasFreeTable = GymTables.some(t => t.status === 'free');
+    if (hasFreeTable && PendingQueue.length > 0) {
+        GymTables.forEach(t => {
+            if (t.status === 'free' && PendingQueue.length > 0) {
+                let match = PendingQueue.shift();
+                t.status = 'busy';
+                t.matchInfo = match;
+            }
+        });
+        saveGymState();
+        renderTables();
+    }
     
     renderQueue();
 }
@@ -2578,27 +2654,45 @@ function renderQueue() {
         return;
     }
     
-    container.innerHTML = PendingQueue.map((m, index) => {
+    let html = '';
+    let currentHeader = '';
+
+    PendingQueue.forEach((m, index) => {
         let isVIP = PrioritizedMatches.includes(m.mid);
+        let header = `${m.catName} • ${m.specificPhase}`;
+
+        // SE FOR VIP, cria o cabeçalho de urgência
+        if (isVIP && currentHeader !== 'VIP') {
+            html += `<div class="mt-4 mb-2 px-1 text-[10px] font-black text-red-500 uppercase tracking-widest border-b-2 border-red-200 pb-1"><i class="fas fa-fire mr-1"></i> Prioridade Máxima</div>`;
+            currentHeader = 'VIP';
+        }
+        // SE NÃO FOR VIP E O CABEÇALHO MUDOU (Ex: Passou de Grupos para Quartas)
+        else if (!isVIP && header !== currentHeader) {
+            html += `<div class="mt-5 mb-2 px-1 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b-2 border-slate-200 pb-1"><i class="fas fa-layer-group mr-1"></i> ${header}</div>`;
+            currentHeader = header;
+        }
+
         let borderClass = isVIP ? 'bg-red-500' : 'bg-orange-500';
         let bgClass = isVIP ? 'bg-red-50' : 'bg-white';
-        let rankDisplay = isVIP ? '<i class="fas fa-fire text-red-500"></i> VIP' : `#${index + 1}`;
+        let rankDisplay = isVIP ? '<i class="fas fa-fire text-red-500"></i>' : `#${index + 1}`;
 
-        return `
-        <div class="${bgClass} p-3 rounded border border-slate-200 shadow-sm flex flex-col gap-1 relative overflow-hidden transition-colors">
+        // O CARD DO JOGO (Agora mais limpo e elegante)
+        html += `
+        <div class="${bgClass} p-3 rounded border border-slate-200 shadow-sm flex flex-col gap-1 relative overflow-hidden transition-colors mb-2">
             <div class="absolute left-0 top-0 bottom-0 w-1 ${borderClass}"></div>
-            <div class="flex justify-between items-center pl-2">
-                <span class="text-[10px] font-bold ${isVIP ? 'text-red-600' : 'text-orange-500'} uppercase">${m.catName} • ${m.phase}</span>
-                <span class="text-[10px] text-slate-500 font-black">${rankDisplay}</span>
-            </div>
             
-            <div class="flex justify-between items-center mt-1 pl-2">
+            <div class="flex justify-between items-center pl-2">
                 <div class="font-bold text-slate-700 text-sm">${m.p1Name} <span class="text-slate-400 text-xs mx-1">X</span> ${m.p2Name}</div>
-                ${!isVIP ? `<button onclick="prioritizeMatch('${m.mid}')" class="text-[10px] bg-slate-200 hover:bg-red-100 hover:text-red-600 text-slate-500 px-2 py-1 rounded font-bold transition-colors" title="Furar a Fila">🔥 Topo</button>` : ''}
+                <div class="flex items-center gap-2">
+                    ${!isVIP ? `<button onclick="prioritizeMatch('${m.mid}')" class="text-[10px] bg-slate-200 hover:bg-red-100 hover:text-red-600 text-slate-500 px-2 py-1 rounded font-bold transition-colors" title="Furar a Fila">🔥 Topo</button>` : ''}
+                    <span class="text-[10px] text-slate-400 font-black">${rankDisplay}</span>
+                </div>
             </div>
         </div>
         `;
-    }).join('');
+    });
+
+    container.innerHTML = html;
 }
 
 function renderTables() {
