@@ -313,7 +313,7 @@ window.onerror = function(msg, url, line) {
                 <button onclick="generateGroups()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 shadow"><i class="fas fa-dice mr-2"></i> Sortear Grupos</button>
                 <button onclick="openEditGroupsModal()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 shadow"><i class="fas fa-edit mr-2"></i> Editar Grupos</button>
                 <button onclick="printScoresheets('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas Imprimir</button>
-                <button onclick="printReport('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Relatório</button>
+                <button onclick="gerarRelatorioPDF('groups')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Relatório</button>
             </div>
             <div class="text-sm text-gray-500"><i class="fas fa-info-circle text-blue-500"></i> Desempate Automático </div>
         </div>
@@ -329,6 +329,7 @@ window.onerror = function(msg, url, line) {
         <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4 items-center no-print">
             <button onclick="printReport('bracket')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-print mr-2"></i> Imprimir Chave</button>
             <button onclick="printScoresheets('bracket')" class="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 shadow"><i class="fas fa-file-pdf mr-2"></i> Súmulas Mata-Mata</button>
+            <button onclick="gerarRelatorioPDF('matamata')" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-sm shadow hover:bg-gray-700 transition flex items-center gap-2"><i class="fas fa-file-alt"></i> Relatório</button>
         </div>
         <div id="bracketCanvas" class="bracket-wrapper pb-20"></div>
     </div>
@@ -1789,10 +1790,11 @@ function renderBracket() {
     
     let htmlTabs = '';
     if (cat.brackets) {
-        htmlTabs += `<div class="w-full flex justify-center gap-2 mb-6">`;
+        // Aumentei para gap-6 para dar um espaço bacana entre os botões
+        htmlTabs += `<div class="w-full flex flex-wrap justify-center items-center gap-6 mb-8">`;
         Object.keys(cat.brackets).forEach(level => {
             const isActive = window.activeSplitLevel === level;
-            htmlTabs += `<button onclick="window.activeSplitLevel='${level}'; getCurrentCategory().bracket = getCurrentCategory().brackets['${level}']; renderBracket();" class="px-4 py-2 rounded font-bold text-xs shadow-sm transition-all ${isActive ? 'bg-blue-600 text-white transform scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">SÉRIE ${level}</button>`;
+            htmlTabs += `<button onclick="window.activeSplitLevel='${level}'; getCurrentCategory().bracket = getCurrentCategory().brackets['${level}']; renderBracket();" class="px-6 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all whitespace-nowrap ${isActive ? 'bg-blue-600 text-white transform scale-105' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'}">Absoluto ${level} Divisão</button>`;
         });
         htmlTabs += `</div>`;
     }
@@ -1809,7 +1811,7 @@ function renderBracket() {
 
         return `
         <div class="flex-1 flex flex-col min-w-[220px]">
-            <div class="bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 mb-6 text-center text-gray-700 text-sm font-semibold tracking-wide shadow-sm mx-4">${name}</div>
+            <div class="bg-orange-500 rounded-lg py-2 px-4 mb-6 text-center text-white text-sm font-bold tracking-wide shadow-md mx-4">${name}</div>
             <div class="flex flex-col justify-around flex-1 relative py-4">
                 ${r.map(m => {
                     const done = !!m.winner;
@@ -1867,7 +1869,14 @@ function renderBracket() {
         </div>`;
     }).join('');
 
-    canvas.innerHTML = htmlTabs + `<div class="flex w-full overflow-x-auto pb-10 bg-gray-50 rounded-xl p-6">${roundsHtml}</div>`;
+    // Embrulha tudo em uma coluna (flex-col) para forçar as abas para cima e a chave para baixo
+    canvas.innerHTML = `
+    <div class="flex flex-col w-full">
+        ${htmlTabs}
+        <div class="flex w-full overflow-x-auto pb-10 bg-gray-50 rounded-xl p-6">
+            ${roundsHtml}
+        </div>
+    </div>`;
 }
 
 
@@ -1978,7 +1987,6 @@ function generateBracketPreview() {
 // SCORE MODAL WITH KEYBOARD SUPPORT
 let curMatch = null;
 function handleModalKey(e) { if(e.key === 'Enter') confirmScore(); }
-
 function openScoreModal(type, mid) {
     const cat = getCurrentCategory();
     let m;
@@ -1997,16 +2005,23 @@ function openScoreModal(type, mid) {
     document.getElementById('modalP1Name').innerText = n1;
     document.getElementById('modalP2Name').innerText = n2;
 
-    // =========================================
-    // INJETANDO OS NOMES NOS BOTÕES DE W.O.
-    // =========================================
     const btnWo1 = document.getElementById('btnWoP1');
     const btnWo2 = document.getElementById('btnWoP2');
     if (btnWo1) btnWo1.innerText = `WO (${n1 || 'P1'})`;
     if (btnWo2) btnWo2.innerText = `WO (${n2 || 'P2'})`;
     
+    // =========================================
+    // CADEADO DE SEGURANÇA: SÓ AFETA O ABSOLUTO
+    // =========================================
+    let maxSets = 5; // Regra Padrão: 5 sets para todo mundo (Sábado inteiro, Mata-Mata, etc)
+    
+    // Cadeado VIP: Só ativa se o nome tiver "absoluto livre jf" E for fase de grupos
+if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type === 'group') {
+    maxSets = 3;
+}
+    
     let setsHtml = '';
-    for(let i=1; i<=5; i++) {
+    for(let i=1; i<=maxSets; i++) {
         let sp1 = m.setScores && m.setScores[i-1] ? m.setScores[i-1].p1 : '';
         let sp2 = m.setScores && m.setScores[i-1] ? m.setScores[i-1].p2 : '';
         setsHtml += `
@@ -2021,7 +2036,6 @@ function openScoreModal(type, mid) {
     document.getElementById('setsContainer').innerHTML = setsHtml;
     document.getElementById('scoreModal').classList.remove('hidden');
     
-    // Auto-focus first input
     setTimeout(() => document.getElementById('m_s1_p1').focus(), 100);
 }
 
@@ -2054,8 +2068,8 @@ function confirmScore() {
     let setScores = [];
     
     for(let i=1; i<=5; i++) {
-        let p1Str = document.getElementById(`m_s${i}_p1`).value;
-        let p2Str = document.getElementById(`m_s${i}_p2`).value;
+        let p1Str = document.getElementById(`m_s${i}_p1`)?.value || '';
+        let p2Str = document.getElementById(`m_s${i}_p2`)?.value || '';
         if(p1Str !== '' && p2Str !== '') {
             let p1 = parseInt(p1Str), p2 = parseInt(p2Str);
 
@@ -2078,9 +2092,17 @@ function confirmScore() {
     }
 
     // =======================================================
-    // A MÁGICA DOS SETS AQUI: Lê a regra da Categoria (2 ou 3)
+    // A MÁGICA DOS SETS AQUI: Lê a regra Inteligente (2 ou 3 vitórias)
     // =======================================================
-    const setsToWin = getCurrentCategory().winSets || 3;
+    const cat = getCurrentCategory();
+    const type = curMatch.type; // Descobre se é grupo ou chave
+    
+    let setsToWin = cat.winSets || 3; // Padrão de fábrica: 3 vitórias (Melhor de 5)
+
+    // Na função confirmScore, mude para:
+if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type === 'group') {
+    setsToWin = 2; 
+}
 
     if(setsWon1 < setsToWin && setsWon2 < setsToWin) {
         showToast(`Faltam sets: precisa chegar em ${setsToWin} vitórias.`, 'error');
@@ -2089,14 +2111,14 @@ function confirmScore() {
 
     // NOVA TRAVA: Bloqueia se o mesário colocar vitórias a mais
     if(setsWon1 > setsToWin || setsWon2 > setsToWin) {
-        showToast(`Sets a mais! A regra desta categoria é de apenas ${setsToWin} vitórias.`, 'error');
+        showToast(`Sets a mais! A regra desta fase é de apenas ${setsToWin} vitórias.`, 'error');
         return;
     }
     // =======================================================
 
     if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
 
-    const { m, type } = curMatch;
+    const { m } = curMatch; // 'type' já foi extraído lá em cima
     m.scoreP1 = setsWon1; m.scoreP2 = setsWon2;
     m.pointsP1 = points1; m.pointsP2 = points2;
     m.setScores = setScores;
@@ -2108,7 +2130,6 @@ function confirmScore() {
         m.winner = setsWon1 > setsWon2 ? m.p1 : m.p2;
         let loser = setsWon1 > setsWon2 ? m.p2 : m.p1;
         if(m.nextId) {
-            const cat = getCurrentCategory();
             let nextM; cat.bracket.rounds.some(r => nextM = r.find(x => x.id === m.nextId));
             if(nextM && !nextM.isLoserBracket) {
                 if(nextM.sources[0] === m.id) nextM.p1 = m.winner;
@@ -2120,22 +2141,15 @@ function confirmScore() {
     }
 
     // =======================================================
-    // MOTOR DE RECÁLCULO DE RATING (COM TRAVA INTELIGENTE E DIVISÕES)
+    // MOTOR DE RECÁLCULO DE RATING (COM TRAVA INTELIGENTE E DIVISÕES) - INTACTO!
     // =======================================================
-    const cat = getCurrentCategory();
-    
-    // A MÁGICA AQUI: O sistema varre a lista de inscritos. 
-    // Se achar alguém com Rating > 0, ele "LIGA" a calculadora.
-    // Se todo mundo for 0 (campo deixado em branco), ele "DESLIGA" e não gera histórico.
     const isRatingActive = cat.players.some(p => (p.initialRating || 0) > 0);
 
-    // 1. Zera o rating e o histórico de todo mundo de volta pro valor inicial
     cat.players.forEach(p => {
         p.pointsRating = p.initialRating || 0;
         p.ratingHistory = [];
     });
 
-    // 2. Função interna com a Matemática TMB/Varginha
     function getCBTMRatingChange(ratingWinner, ratingLoser) {
         const diff = ratingWinner - ratingLoser;
         let winPoints = 0; let losePoints = 0;
@@ -2165,7 +2179,6 @@ function confirmScore() {
         return { winPoints, losePoints };
     }
 
-    // 3. Processa e recalcula uma partida isolada
     function processMatch(matchObj, matchType) {
         let player1Id = matchType === 'group' ? matchObj.p1Id : matchObj.p1?.id;
         let player2Id = matchType === 'group' ? matchObj.p2Id : matchObj.p2?.id;
@@ -2194,16 +2207,13 @@ function confirmScore() {
         }
     }
 
-    // 4. Varre TODOS os jogos terminados de Grupos e TODOS os Mata-Matas possíveis
     if (isRatingActive) {
         if (cat.matches) {
             cat.matches.forEach(match => { if (match.winnerId) processMatch(match, 'group'); });
         }
-        // Calcula a chave Ouro Padrão (se for ela)
         if (cat.bracket && cat.bracket.rounds && !cat.brackets) {
             cat.bracket.rounds.forEach(round => { round.forEach(match => { if (match.winner) processMatch(match, 'bracket'); }); });
         }
-        // Calcula as chaves A, B, C, e D (se for o modo Divisão)
         if (cat.brackets) {
             Object.values(cat.brackets).forEach(b => {
                 if(b && b.rounds) b.rounds.forEach(round => round.forEach(match => { if (match.winner) processMatch(match, 'bracket'); }));
@@ -3057,6 +3067,162 @@ function syncCategorySettings() {
     const gsSelect = document.getElementById('groupSizeSelect');
     if(cat && wsSelect) wsSelect.value = cat.winSets || 3;
     if(cat && gsSelect) gsSelect.value = cat.groupSize || 3;
+}
+
+
+function gerarRelatorioPDF(tipo) {
+    const cat = getCurrentCategory();
+    if (!cat) {
+        alert("Nenhuma categoria selecionada.");
+        return;
+    }
+
+    // Puxa o motor de PDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // CABEÇALHO DO DOCUMENTO
+    doc.setFontSize(18);
+    doc.setTextColor(249, 115, 22); // Laranja
+    doc.setFont("helvetica", "bold");
+    doc.text(`Relatório Oficial - ${cat.name}`, 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
+
+    // Linha divisória
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 32, 195, 32);
+
+    let yOffset = 45;
+
+    // =========================================================
+    // LÓGICA 1: FASE DE GRUPOS
+    // =========================================================
+    if (tipo === 'grupos' || tipo === 'groups') {
+        if (!cat.groups || cat.groups.length === 0) {
+            alert("A fase de grupos ainda não foi gerada.");
+            return;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.text("Classificação da Fase de Grupos", 105, yOffset, { align: 'center' });
+        yOffset += 15;
+
+        cat.groups.forEach((g, i) => {
+            doc.setFontSize(12);
+            doc.setTextColor(37, 99, 235);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Grupo ${String.fromCharCode(65 + i)}`, 20, yOffset);
+            yOffset += 8;
+
+            // A MÁGICA AQUI: O PDF agora pede os cálculos para a SUA função!
+            let jogadoresOrdenados = getSortedPlayersForGroup(cat, g);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text("Pos", 20, yOffset);
+            doc.text("Atleta", 40, yOffset);
+            doc.text("V", 140, yOffset);
+            doc.text("SR", 160, yOffset);
+            yOffset += 6;
+
+            doc.setFont("helvetica", "normal");
+            jogadoresOrdenados.forEach((p, index) => {
+                if(index < 2) {
+                    doc.setTextColor(249, 115, 22);
+                    doc.setFont("helvetica", "bold");
+                } else {
+                    doc.setTextColor(50, 50, 50);
+                    doc.setFont("helvetica", "normal");
+                }
+                
+                // Formata o SR (Set Ratio) exatamente como a sua tela faz
+                let srFormatado = p.setRatio ? p.setRatio.toFixed(1) : "0.0";
+                let v = p.wins || 0;
+
+                doc.text(`${index + 1}º`, 20, yOffset);
+                doc.text(`${p.name}`, 40, yOffset);
+                doc.text(`${v}`, 140, yOffset);
+                doc.text(`${srFormatado}`, 160, yOffset);
+                yOffset += 7;
+            });
+            yOffset += 10;
+            
+            if(yOffset > 260) { doc.addPage(); yOffset = 20; }
+        });
+    }
+    // =========================================================
+    // LÓGICA 2: MATA-MATA
+    // =========================================================
+    else if (tipo === 'matamata' || tipo === 'bracket') {
+        const temDivisoes = !!cat.brackets;
+        if (!temDivisoes && !cat.bracket) {
+            alert("O Mata-Mata ainda não foi gerado.");
+            return;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.text("Homologação de Pódio Final", 105, yOffset, { align: 'center' });
+        yOffset += 20;
+
+        if (temDivisoes) {
+            Object.keys(cat.brackets).forEach(level => {
+                const bracket = cat.brackets[level];
+                const finalMatch = bracket.rounds[bracket.rounds.length - 1][0];
+                let campeao = 'Pendente'; let vice = 'Pendente';
+                if (finalMatch && finalMatch.winner) {
+                    campeao = finalMatch.winner.name;
+                    vice = (finalMatch.winner.id === finalMatch.p1.id) ? finalMatch.p2.name : finalMatch.p1.name;
+                }
+
+                doc.setFontSize(12);
+                doc.setTextColor(37, 99, 235);
+                doc.setFont("helvetica", "bold");
+                doc.text(`Absoluto ${level} Divisão`, 20, yOffset);
+                yOffset += 8;
+
+                doc.setFontSize(11);
+                doc.setTextColor(21, 128, 61); // Verde
+                doc.text(`1º Campeão: ${campeao}`, 25, yOffset);
+                yOffset += 7;
+                doc.setTextColor(100, 100, 100); // Cinza
+                doc.setFont("helvetica", "normal");
+                doc.text(`2º Vice: ${vice}`, 25, yOffset);
+                yOffset += 15;
+            });
+        } else {
+            const finalMatch = cat.bracket.rounds[cat.bracket.rounds.length - 1][0];
+            let campeao = 'Pendente'; let vice = 'Pendente';
+            if (finalMatch && finalMatch.winner) {
+                campeao = finalMatch.winner.name;
+                vice = (finalMatch.winner.id === finalMatch.p1.id) ? finalMatch.p2.name : finalMatch.p1.name;
+            }
+
+            doc.setFontSize(12);
+            doc.setTextColor(37, 99, 235);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Fase Final`, 20, yOffset);
+            yOffset += 8;
+
+            doc.setFontSize(11);
+            doc.setTextColor(21, 128, 61);
+            doc.text(`1º Campeão: ${campeao}`, 25, yOffset);
+            yOffset += 7;
+            doc.setTextColor(100, 100, 100);
+            doc.setFont("helvetica", "normal");
+            doc.text(`2º Vice: ${vice}`, 25, yOffset);
+        }
+    }
+
+    // Salva o PDF
+    doc.save(`Relatorio_${tipo}_${cat.name}.pdf`);
 }
 </script>
 </body>
