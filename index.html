@@ -48,6 +48,73 @@
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .toast { animation: slideIn 0.3s ease-out forwards; }
         .active-nav { border-left-color: #f97316 !important; background-color: #1e293b; color: #f97316; }
+
+     /* Container das colunas */
+#bracketCanvas .flex.w-full {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+/* Coluna de Rodada */
+.round-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 240px; /* Largura mínima maior para os cards novos */
+}
+
+/* O conector que sai do card */
+.bracket-connector {
+    position: absolute;
+    right: 0;
+    width: 32px; /* Espaço entre as colunas */
+    height: 100%;
+    z-index: 0;
+}
+
+/* Linha horizontal que sai do card */
+.bracket-connector::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #cbd5e1;
+}
+
+/* Linha vertical que une os dois jogos */
+.bracket-connector::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    width: 2px;
+    background-color: #cbd5e1;
+}
+
+/* Ajuste da vertical: sobe no primeiro jogo do par (ímpar), desce no segundo (par) */
+.relative:nth-child(odd) .bracket-connector::after {
+    top: 50%;
+    height: 100%; /* Ajuste dinâmico conforme o gap */
+}
+
+.relative:nth-child(even) .bracket-connector::after {
+    bottom: 50%;
+    height: 100%;
+}
+
+/* A "perninha" horizontal que entra no card da próxima rodada */
+.round-column + .round-column .match-card::before {
+    content: "";
+    position: absolute;
+    left: -32px;
+    top: 50%;
+    width: 32px;
+    height: 2px;
+    background-color: #cbd5e1;
+    z-index: 0;
+}
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -186,8 +253,30 @@ window.onerror = function(msg, url, line) {
         <div id="dash-global-status" class="hidden"></div>
     </div>
 
-    <!-- 2. INSCRIÇÕES (Corrigido para não vazar) -->
-    <div id="view-registration" class="view-section hidden">
+   <div id="view-registration" class="view-section hidden">
+        
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-6 border-l-4 border-blue-500 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h4 class="font-bold text-gray-700">Configurações da Categoria</h4>
+                <p class="text-xs text-gray-500">Escolha as regras ANTES de sortear</p>
+            </div>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-blue-600 uppercase mb-1">Formato de Jogo</label>
+                    <select id="winSetsSelect" onchange="updateCategoryConfig('winSets', this.value)" class="bg-blue-50 border border-blue-200 rounded-lg p-2 font-bold text-blue-700 outline-none text-sm cursor-pointer">
+                        <option value="2">Melhor de 3 (Ganha com 2 sets)</option>
+                        <option value="3" selected>Melhor de 5 (Ganha com 3 sets)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-blue-600 uppercase mb-1">Tamanho dos Grupos</label>
+                    <select id="groupSizeSelect" onchange="updateCategoryConfig('groupSize', this.value)" class="bg-blue-50 border border-blue-200 rounded-lg p-2 font-bold text-blue-700 outline-none text-sm cursor-pointer">
+                        <option value="3" selected>Grupos de 3 Atletas</option>
+                        <option value="4">Grupos de 4 Atletas</option>
+                    </select>
+                </div>
+            </div>
+        </div>
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6 flex gap-4 flex-wrap">
             <input type="text" id="newPlayerName" placeholder="Nome do Atleta" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" onkeydown="if(event.key==='Enter') document.getElementById('newPlayerPointsRanking').focus()">
             
@@ -350,7 +439,7 @@ window.onerror = function(msg, url, line) {
         
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Controle de Mesas</h2>
+                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Gestão de jogos Inteligente</h2>
                 <p class="text-sm text-slate-500 mt-1">Fila inteligente com sistema anti-clone e mistura de grupos</p>
             </div>
             
@@ -700,8 +789,19 @@ window.addEventListener('DOMContentLoaded', () => {
 // CATEGORY MANAGER
 State.addCategory = (name) => {
     const id = Date.now().toString();
-    State.categories.push({ id, name, players: [], groups: [], matches: [], bracket: null, status: 'registration' });
-    save(); return id;
+    State.categories.push({ 
+        id, 
+        name, 
+        players: [], 
+        groups: [], 
+        matches: [], 
+        bracket: null, 
+        status: 'registration',
+        winSets: 3,        // Mantém a regra de Melhor de 5 como padrão
+        groupSize: 3       // NOVO: Define grupos de 3 como padrão inicial
+    });
+    save(); 
+    return id;
 };
 
 function updateDashboard() {
@@ -894,13 +994,28 @@ function switchTab(tabId) {
         'bracket': ['Mata-Mata', 'Eliminatórias'],
         'podium': ['Pódio', 'Classificação Final'], 
         'ranking': ['Liga ALTM Pro', 'Ranking Global de Atletas'],
-        'ratingreport': ['Relatório de Rating', 'CBTM']
+        'ratingreport': ['Relatório de Rating', ],
+        'mesas': ['Controle de Mesas', 'Gerenciamento da Fila de Jogos'] // <--- ADICIONAMOS ESSA LINHA!
     };
     
+    // === A MÁGICA DO NOME DA CATEGORIA EM VERMELHO AQUI ===
     if(titles[tabId]) {
-        document.getElementById('headerTitle').innerText = titles[tabId][0];
+        let tituloPrincipal = titles[tabId][0];
+        
+        // Tenta pegar a categoria selecionada no momento
+        const cat = typeof getCurrentCategory === 'function' ? getCurrentCategory() : null;
+        
+        // Removi a trava! Agora, se tiver categoria selecionada, mostra o nome em TODAS as abas
+        if (cat && cat.name) {
+            tituloPrincipal += ` <span class="text-red-500 ml-2 text-xl font-bold">- ${cat.name}</span>`;
+            document.getElementById('headerTitle').innerHTML = tituloPrincipal;
+        } else {
+            document.getElementById('headerTitle').innerText = tituloPrincipal;
+        }
+        
         document.getElementById('headerSubtitle').innerText = titles[tabId][1];
     }
+    // ======================================================
 
     if(tabId === 'groups') renderGroups();
     if(tabId === 'bracket') renderBracket();
@@ -1227,11 +1342,16 @@ function buildGroupMatches(cat) {
 }
 function generateGroups() {
     const cat = getCurrentCategory();
-    if (cat.players.length < 3) { showToast('Mínimo 3 atletas!', 'error'); return; }
+    
+    // A MÁGICA AQUI: O sistema lê a sua escolha no painel (3 ou 4)
+    const groupSize = cat.groupSize || 3;
+
+    // Abaixei para 2 para aceitar sua categoria de 2 Duplas sem dar erro!
+    if (cat.players.length < 2) { showToast('Mínimo 2 atletas!', 'error'); return; }
     if (cat.groups && cat.groups.length > 0 && !confirm('Refazer sorteio? Isso apagará os jogos atuais.')) return;
 
-    // 1. CÁLCULO DE GRUPOS
-    let numGroups = Math.floor(cat.players.length / 3);
+    // 1. CÁLCULO DE GRUPOS (Lendo a sua escolha de groupSize)
+    let numGroups = Math.floor(cat.players.length / groupSize);
     if (numGroups === 0) numGroups = 1;
 
     // 2. ORDENAÇÃO INTELIGENTE (RATING -> RANKING -> ORDEM DE INSCRIÇÃO)
@@ -1484,6 +1604,25 @@ function finalizeGroups(mode = 'standard') {
             return { rounds };
         };
 
+        // =========================================================================
+        // A MÁGICA NOVA DO POPUP AQUI - Avalia se precisa juntar Série C e D
+        // =========================================================================
+        const totalGroups = cat.groups.length;
+        const totalQuartosColocados = splitQualifiers['D'].length;
+
+        // Se tem alguém na D, mas nem todos os grupos tem 4 pessoas (grupos quebrados)
+        if (totalQuartosColocados > 0 && totalQuartosColocados < totalGroups) {
+            const mensagem = "Atenção: Os grupos têm tamanhos diferentes.\n\nAlguns atletas ficarão sozinhos ou com poucos jogos na Série D.\nDeseja MESCLAR os 3ºs e 4ºs colocados numa única Série C Consolação?\n\n[ OK ] = SIM, juntar todos na Série C.\n[ CANCELAR ] = NÃO, gerar a Série D separada.";
+            
+            if (confirm(mensagem)) {
+                // Joga a galera da D para dentro da C
+                splitQualifiers['C'] = splitQualifiers['C'].concat(splitQualifiers['D']);
+                // Esvazia a D para o sistema não gerar a aba dela
+                splitQualifiers['D'] = [];
+            }
+        }
+        // =========================================================================
+
         cat.brackets = {}; // Cria as múltiplas chaves
         if (splitQualifiers['A'].length >= 2) cat.brackets['A'] = generateOlympicBracket(splitQualifiers['A'], 'bA');
         if (splitQualifiers['B'].length >= 2) cat.brackets['B'] = generateOlympicBracket(splitQualifiers['B'], 'bB');
@@ -1639,66 +1778,96 @@ function renderBracket() {
     const cat = getCurrentCategory();
     const canvas = document.getElementById('bracketCanvas');
     
-    // Se não há bracket oficial e nem divisões, mostra PREVIEW ou Aguardando
     if(!cat || (!cat.bracket && !cat.brackets)) { 
         if(cat && (!cat.groups || cat.groups.length === 0)) {
             canvas.innerHTML = '<div class="w-full text-center py-10 text-gray-400">Aguardando grupos.</div>'; 
             return; 
         }
-        // GERA PREVIEW VISUAL
         canvas.innerHTML = typeof generateBracketPreview === 'function' ? generateBracketPreview() : '';
         return;
     }
     
     let htmlTabs = '';
-    // SE TEM DIVISÕES (Botão Azul foi clicado), cria os botões para alternar as abas
     if (cat.brackets) {
         htmlTabs += `<div class="w-full flex justify-center gap-2 mb-6">`;
         Object.keys(cat.brackets).forEach(level => {
             const isActive = window.activeSplitLevel === level;
-            // O onclick: Ele aponta o sistema para a aba clicada e re-renderiza
             htmlTabs += `<button onclick="window.activeSplitLevel='${level}'; getCurrentCategory().bracket = getCurrentCategory().brackets['${level}']; renderBracket();" class="px-4 py-2 rounded font-bold text-xs shadow-sm transition-all ${isActive ? 'bg-blue-600 text-white transform scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">SÉRIE ${level}</button>`;
         });
         htmlTabs += `</div>`;
     }
 
-    // Define qual chave vai ser desenhada na tela
     const targetRounds = cat.bracket ? cat.bracket.rounds : [];
 
-    // Desenha as rodadas
     const roundsHtml = targetRounds.map((r, i) => {
-        // Nomenclatura dinâmica das fases do mata-mata
         const roundsLeft = targetRounds.length - i;
         let name = `Rodada ${i+1}`;
         if (roundsLeft === 1) name = 'FINAL';
         else if (roundsLeft === 2) name = 'SEMIFINAL';
         else if (roundsLeft === 3) name = 'QUARTAS DE FINAL';
         else if (roundsLeft === 4) name = 'OITAVAS DE FINAL';
-        else if (roundsLeft === 5) name = '16 AVOS DE FINAL';
-        else if (roundsLeft === 6) name = '32 AVOS DE FINAL';
 
         return `
-        <div class="round-column">
-            <h3 class="text-center font-bold text-orange-600 mb-2 text-sm">${name}</h3>
-            <div class="flex flex-col justify-around flex-1">
+        <div class="flex-1 flex flex-col min-w-[220px]">
+            <div class="bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 mb-6 text-center text-gray-700 text-sm font-semibold tracking-wide shadow-sm mx-4">${name}</div>
+            <div class="flex flex-col justify-around flex-1 relative py-4">
                 ${r.map(m => {
                     const done = !!m.winner;
                     const isBye = m.p1.id==='bye' || m.p2.id==='bye';
+                    
+                    // Lógica para cor de fundo de cada jogador e destaque do vencedor
+                    const getPlayerColor = (pId, winnerId, defaultColor) => {
+                        if (pId === winnerId) return 'bg-yellow-500 text-green-900'; // Destaque Dourado/Amarelo para Vencedor
+                        if (pId === m.p1.id) return 'bg-zinc-800 text-white'; // Verde Escuro/Cinza Escuro para P1
+                        if (pId === m.p2.id) return 'bg-zinc-600 text-white'; // Cinza para P2
+                        return defaultColor;
+                    };
+
+                    const player1Classes = getPlayerColor(m.p1.id, m.winner?.id, 'bg-zinc-800 text-white');
+                    const player2Classes = getPlayerColor(m.p2.id, m.winner?.id, 'bg-zinc-600 text-white');
+
+                    // =========================================================
+                    // LÓGICA DE SETS BLINDADA (Lê Array, String ou Partials)
+                    // =========================================================
+                    let setsFormatados = '';
+                    if (m.sets && Array.isArray(m.sets) && m.sets.length > 0) {
+                        setsFormatados = m.sets.join(' • ');
+                    } else if (m.sets && typeof m.sets === 'string') {
+                        setsFormatados = m.sets;
+                    } else if (m.partials && Array.isArray(m.partials) && m.partials.length > 0) {
+                        setsFormatados = m.partials.join(' • ');
+                    }
+                    // =========================================================
+
                     return `
-                    <div class="match-card ${done?'completed':'pending'} ${m.isThirdPlace?'third-place mt-10':''}" ${!isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
-                        ${m.isThirdPlace ? `<div class="text-[10px] font-bold text-blue-500 mb-1">Disputa de 3º Lugar</div>` : ''}
-                        <div class="flex justify-between mb-1"><span class="truncate w-28 ${m.winner?.id===m.p1.id?'font-bold text-green-600':''}">${m.p1.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP1!=null?m.scoreP1:'-'}</span></div>
-                        <div class="flex justify-between"><span class="truncate w-28 ${m.winner?.id===m.p2.id?'font-bold text-green-600':''}">${m.p2.name}</span><span class="bg-gray-100 px-1 rounded text-xs font-bold">${m.scoreP2!=null?m.scoreP2:'-'}</span></div>
-                        <div class="text-[10px] text-gray-400 text-center mt-2 border-t pt-1">Jogo ${m.id.split('-').pop().replace('3rd','3º')}</div>
-                        ${i < targetRounds.length-1 && !m.isThirdPlace ? '<div class="connector"></div>' : ''}
+                    <div class="relative flex items-center py-6 w-full px-8"> 
+                        <div class="match-card z-10 w-full rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer ${m.isThirdPlace?'mt-10':''}" 
+                             ${!isBye ? `onclick="openScoreModal('bracket','${m.id}')"` : ''}>
+                            
+                            <div class="flex justify-between items-center py-2 px-3 border-b border-gray-200 ${player1Classes}">
+                                <span class="text-xs truncate max-w-[120px] font-medium">${m.p1.name}</span>
+                                <span class="text-xs font-bold min-w-[28px] text-center">${m.scoreP1!=null?m.scoreP1:'-'}</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-2 px-3 ${player2Classes}">
+                                <span class="text-xs truncate max-w-[120px] font-medium">${m.p2.name}</span>
+                                <span class="text-xs font-bold min-w-[28px] text-center">${m.scoreP2!=null?m.scoreP2:'-'}</span>
+                            </div>
+                            
+                            <div class="text-[10px] text-gray-500 text-center py-1.5 mt-1 font-mono uppercase tracking-tighter bg-gray-50 border-t border-gray-100 flex flex-col items-center justify-center">
+                                ${setsFormatados !== '' ? `<span class="font-bold text-gray-700 text-[11px] mb-0.5">${setsFormatados}</span>` : ''}
+                                <span>J-${m.id.split('-').pop()} • ${new Date().toLocaleDateString('pt-BR')}</span>
+                            </div>
+                        </div>
+                        
+                        ${i < targetRounds.length - 1 && !m.isThirdPlace ? `<div class="bracket-connector"></div>` : ''}
                     </div>`
                 }).join('')}
             </div>
         </div>`;
     }).join('');
 
-    // Injeta os botões de aba (se houver) e o HTML do torneio na tela
-    canvas.innerHTML = htmlTabs + `<div class="flex w-full">${roundsHtml}</div>`;
+    canvas.innerHTML = htmlTabs + `<div class="flex w-full overflow-x-auto pb-10 bg-gray-50 rounded-xl p-6">${roundsHtml}</div>`;
 }
 
 
@@ -1859,13 +2028,24 @@ function openScoreModal(type, mid) {
 function closeModal() { document.getElementById('scoreModal').classList.add('hidden'); curMatch = null; }
 
 function applyWO(winner) {
-    for(let i=1; i<=3; i++) {
+    // 1. Pergunta pro painel qual foi a regra escolhida para essa categoria
+    const cat = getCurrentCategory();
+    const setsToWin = cat.winSets || 3; 
+
+    // 2. Passa a vassoura e limpa todos os 5 sets para garantir que não tem lixo
+    for(let i=1; i<=5; i++) {
+        document.getElementById(`m_s${i}_p1`).value = '';
+        document.getElementById(`m_s${i}_p2`).value = '';
+    }
+    
+    // 3. Preenche 11x0 apenas na quantidade de sets necessários (2 ou 3)
+    for(let i=1; i<=setsToWin; i++) {
         document.getElementById(`m_s${i}_p1`).value = winner === 'p1' ? 11 : 0;
         document.getElementById(`m_s${i}_p2`).value = winner === 'p1' ? 0 : 11;
     }
-    document.getElementById(`m_s4_p1`).value = ''; document.getElementById(`m_s4_p2`).value = '';
-    document.getElementById(`m_s5_p1`).value = ''; document.getElementById(`m_s5_p2`).value = '';
-    confirmScore(); // Saves automatically
+    
+    // 4. Salva o placar e libera a mesa
+    confirmScore(); 
     checkAndAdvanceTables();
 }
 
@@ -1897,10 +2077,23 @@ function confirmScore() {
         }
     }
 
-    if(setsWon1 < MATCH_WIN_SETS && setsWon2 < MATCH_WIN_SETS) {
-        showToast(`Faltam sets: precisa chegar em ${MATCH_WIN_SETS}.`, 'error');
+    // =======================================================
+    // A MÁGICA DOS SETS AQUI: Lê a regra da Categoria (2 ou 3)
+    // =======================================================
+    const setsToWin = getCurrentCategory().winSets || 3;
+
+    if(setsWon1 < setsToWin && setsWon2 < setsToWin) {
+        showToast(`Faltam sets: precisa chegar em ${setsToWin} vitórias.`, 'error');
         return;
     }
+
+    // NOVA TRAVA: Bloqueia se o mesário colocar vitórias a mais
+    if(setsWon1 > setsToWin || setsWon2 > setsToWin) {
+        showToast(`Sets a mais! A regra desta categoria é de apenas ${setsToWin} vitórias.`, 'error');
+        return;
+    }
+    // =======================================================
+
     if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
 
     const { m, type } = curMatch;
@@ -2844,6 +3037,26 @@ function isMatchFinished(mid, type) {
     let isWO = m.winner !== undefined && m.winner !== null;
     
     return hasScore || isWO;
+}
+
+
+// Salva a regra quando você muda a caixinha
+function updateCategoryConfig(key, val) {
+    const cat = getCurrentCategory();
+    if(cat) {
+        cat[key] = parseInt(val);
+        save();
+        showToast('Configuração salva com sucesso! ⚙️', 'success');
+    }
+}
+
+// Atualiza a caixinha quando você troca de categoria
+function syncCategorySettings() {
+    const cat = getCurrentCategory();
+    const wsSelect = document.getElementById('winSetsSelect');
+    const gsSelect = document.getElementById('groupSizeSelect');
+    if(cat && wsSelect) wsSelect.value = cat.winSets || 3;
+    if(cat && gsSelect) gsSelect.value = cat.groupSize || 3;
 }
 </script>
 </body>
