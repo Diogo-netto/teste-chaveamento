@@ -3099,7 +3099,7 @@ function gerarRelatorioPDF(tipo) {
     let yOffset = 45;
 
     // =========================================================
-    // LÓGICA 1: FASE DE GRUPOS
+    // LÓGICA 1: TABELAS OFICIAIS LARANJA (ESTILO GRID)
     // =========================================================
     if (tipo === 'grupos' || tipo === 'groups') {
         if (!cat.groups || cat.groups.length === 0) {
@@ -3107,53 +3107,75 @@ function gerarRelatorioPDF(tipo) {
             return;
         }
 
-        doc.setFontSize(14);
-        doc.setTextColor(30, 41, 59);
-        doc.setFont("helvetica", "bold");
-        doc.text("Classificação da Fase de Grupos", 105, yOffset, { align: 'center' });
-        yOffset += 15;
-
         cat.groups.forEach((g, i) => {
-            doc.setFontSize(12);
-            doc.setTextColor(37, 99, 235);
+            // Título do Grupo
+            doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
+            doc.setTextColor(0, 0, 0);
             doc.text(`Grupo ${String.fromCharCode(65 + i)}`, 20, yOffset);
+            yOffset += 5;
+
+            // --- CABEÇALHO DA TABELA (Fundo Laranja) ---
+            doc.setFillColor(234, 88, 12); // Laranja oficial
+            doc.rect(20, yOffset, 170, 8, 'F');
+            
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255); // Texto Branco
+            doc.text("Atleta", 25, yOffset + 5.5);
+            doc.text("Vitórias", 100, yOffset + 5.5);
+            doc.text("Set Ratio", 130, yOffset + 5.5);
+            doc.text("Pts Ratio", 160, yOffset + 5.5);
             yOffset += 8;
 
-            // A MÁGICA AQUI: O PDF agora pede os cálculos para a SUA função!
-            let jogadoresOrdenados = getSortedPlayersForGroup(cat, g);
+            let jogadores = getSortedPlayersForGroup(cat, g);
 
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text("Pos", 20, yOffset);
-            doc.text("Atleta", 40, yOffset);
-            doc.text("V", 140, yOffset);
-            doc.text("SR", 160, yOffset);
-            yOffset += 6;
-
-            doc.setFont("helvetica", "normal");
-            jogadoresOrdenados.forEach((p, index) => {
-                if(index < 2) {
-                    doc.setTextColor(249, 115, 22);
-                    doc.setFont("helvetica", "bold");
-                } else {
-                    doc.setTextColor(50, 50, 50);
-                    doc.setFont("helvetica", "normal");
-                }
+            // --- LINHAS DOS ATLETAS ---
+            jogadores.forEach((p, index) => {
+                // Desenha a borda da linha
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(20, yOffset, 170, 8);
                 
-                // Formata o SR (Set Ratio) exatamente como a sua tela faz
-                let srFormatado = p.setRatio ? p.setRatio.toFixed(1) : "0.0";
+                doc.setTextColor(50, 50, 50);
+                doc.setFont("helvetica", "normal");
+
+                let sr = p.setRatio ? p.setRatio.toFixed(2) : "0.00";
+                let pr = p.pointRatio ? p.pointRatio.toFixed(2) : "0.00";
                 let v = p.wins || 0;
 
-                doc.text(`${index + 1}º`, 20, yOffset);
-                doc.text(`${p.name}`, 40, yOffset);
-                doc.text(`${v}`, 140, yOffset);
-                doc.text(`${srFormatado}`, 160, yOffset);
-                yOffset += 7;
+                doc.text(`${index + 1}º ${p.name}`, 25, yOffset + 5.5);
+                doc.text(`${v}`, 100, yOffset + 5.5);
+                doc.text(`${sr}`, 130, yOffset + 5.5);
+                doc.text(`${pr}`, 160, yOffset + 5.5);
+                
+                yOffset += 8;
             });
-            yOffset += 10;
-            
-            if(yOffset > 260) { doc.addPage(); yOffset = 20; }
+
+            // --- LISTA DE CONFRONTOS ABAIXO DA TABELA ---
+            yOffset += 5;
+            const matches = cat.matches.filter(m => m.groupId === g.id);
+            if(matches && matches.length > 0) {
+                doc.setFontSize(9);
+                doc.setTextColor(100, 100, 100);
+                doc.setFont("helvetica", "bold");
+                doc.text("CONFRONTOS DO GRUPO:", 20, yOffset);
+                yOffset += 5;
+                
+                doc.setFont("helvetica", "normal");
+                matches.forEach((m, idx) => {
+                    const p1 = g.players.find(x => x.id === m.p1Id)?.name || '?';
+                    const p2 = g.players.find(x => x.id === m.p2Id)?.name || '?';
+                    doc.text(`Jogo ${idx + 1}: ${p1} vs ${p2}`, 25, yOffset);
+                    yOffset += 5;
+                });
+            }
+
+            yOffset += 15; // Espaço entre grupos
+
+            // Pula página se necessário
+            if (yOffset > 240) {
+                doc.addPage();
+                yOffset = 20;
+            }
         });
     }
     // =========================================================
