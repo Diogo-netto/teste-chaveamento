@@ -3010,62 +3010,102 @@ function gerarRelatorioPDF(tipo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    // CABEÇALHO DO DOCUMENTO
+    // CABEÇALHO PADRÃO
     doc.setFontSize(18);
-    doc.setTextColor(249, 115, 22);
+    doc.setTextColor(249, 115, 22); // Laranja
     doc.setFont("helvetica", "bold");
     doc.text(`Relatório Oficial - ${cat.name}`, 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal");
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
     doc.setDrawColor(200, 200, 200);
     doc.line(15, 32, 195, 32);
 
     let yOffset = 45;
 
+    // =========================================================
+    // LÓGICA 1: TABELAS DE GRUPOS (ESTILO GRID LARANJA)
+    // =========================================================
     if (tipo === 'grupos' || tipo === 'groups') {
-        // LÓGICA DE GRUPOS
-        if (!cat.groups || cat.groups.length === 0) return;
-        cat.groups.forEach((g, i) => {
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Grupo ${String.fromCharCode(65 + i)}`, 20, yOffset);
-            yOffset += 10;
-            // (O resto do seu código de grupos aqui...)
-            if (yOffset > 250) { doc.addPage(); yOffset = 20; }
-        });
-    } else if (tipo === 'sumulasMataMata' || tipo === 'matamata') {
-        // LÓGICA DE MATA-MATA (CORRIGIDA)
-        if (!cat.bracket || !cat.bracket.rounds) {
-            alert("Gere o Mata-Mata primeiro.");
+        if (!cat.groups || cat.groups.length === 0) {
+            alert("A fase de grupos ainda não foi gerada.");
             return;
         }
 
-        cat.bracket.rounds.forEach((round, rIdx) => {
-            round.forEach((m, mIdx) => {
-                // TRAVA CIRÚRGICA: Ignora os BYEs do Mirim
-                const isBye = (m.p1?.id === 'bye' || m.p2?.id === 'bye' || m.p1?.name === 'BYE' || m.p2?.name === 'BYE');
-                if (isBye) return;
+        cat.groups.forEach((g, i) => {
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Grupo ${String.fromCharCode(65 + i)}`, 20, yOffset);
+            yOffset += 5;
 
-                doc.addPage();
-                doc.setFontSize(16);
-                doc.setTextColor(0);
-                doc.text("SÚMULA DE JOGO", 105, 20, { align: 'center' });
-                doc.setFontSize(10);
-                doc.text(`${cat.name} - Jogo ${mIdx + 1}`, 105, 28, { align: 'center' });
-                
-                doc.rect(20, 40, 170, 30);
-                doc.text(m.p1?.name || "A definir", 25, 50);
-                doc.line(20, 55, 190, 55);
-                doc.text(m.p2?.name || "A definir", 25, 65);
+            // Fundo Laranja do Cabeçalho
+            doc.setFillColor(234, 88, 12);
+            doc.rect(20, yOffset, 170, 8, 'F');
+            
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.text("Atleta", 25, yOffset + 5.5);
+            doc.text("Vitórias", 100, yOffset + 5.5);
+            doc.text("Set Ratio", 130, yOffset + 5.5);
+            doc.text("Pts Ratio", 160, yOffset + 5.5);
+            yOffset += 8;
 
-                doc.text("Vencedor: ____________________________", 20, 85);
-                doc.text("Mesa: _______________________________", 20, 95);
+            let jogadores = getSortedPlayersForGroup(cat, g);
+            jogadores.forEach((p, index) => {
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(20, yOffset, 170, 8);
+                doc.setTextColor(50, 50, 50);
+                doc.setFont("helvetica", "normal");
+                let sr = p.setRatio ? p.setRatio.toFixed(2) : "0.00";
+                let pr = p.pointRatio ? p.pointRatio.toFixed(2) : "0.00";
+                let v = p.wins || 0;
+                doc.text(`${index + 1}º ${p.name}`, 25, yOffset + 5.5);
+                doc.text(`${v}`, 100, yOffset + 5.5);
+                doc.text(`${sr}`, 130, yOffset + 5.5);
+                doc.text(`${pr}`, 160, yOffset + 5.5);
+                yOffset += 8;
             });
+
+            // Lista de Confrontos do Grupo
+            yOffset += 5;
+            const matches = cat.matches ? cat.matches.filter(m => m.groupId === g.id) : [];
+            if(matches && matches.length > 0) {
+                doc.setFontSize(9);
+                doc.setTextColor(100, 100, 100);
+                doc.setFont("helvetica", "bold");
+                doc.text("CONFRONTOS DO GRUPO:", 20, yOffset);
+                yOffset += 5;
+                
+                doc.setFont("helvetica", "normal");
+                matches.forEach((m, idx) => {
+                    const p1 = g.players.find(x => x.id === m.p1Id)?.name || '?';
+                    const p2 = g.players.find(x => x.id === m.p2Id)?.name || '?';
+                    doc.text(`Jogo ${idx + 1}: ${p1} vs ${p2}`, 25, yOffset);
+                    yOffset += 5;
+                });
+            }
+
+            yOffset += 15;
+            if (yOffset > 240) { doc.addPage(); yOffset = 20; }
         });
+    } 
+    // =========================================================
+    // LÓGICA 2: PÓDIO (HOMOLOGAÇÃO)
+    // =========================================================
+    else if (tipo === 'matamata' || tipo === 'bracket') {
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.text("Homologação de Pódio Final", 105, yOffset, { align: 'center' });
+        yOffset += 20;
+        doc.setFont("helvetica", "normal");
+        doc.text("Verifique os resultados na tela principal do sistema.", 20, yOffset);
     }
 
+    // FINALIZA E SALVA
     doc.save(`Relatorio_${tipo}_${cat.name}.pdf`);
 }
 </script>
