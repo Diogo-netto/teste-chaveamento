@@ -1529,28 +1529,21 @@ function finalizeGroups(mode = 'standard') {
     if(!confirm(mode === 'split' ? 'Gerar Divisões (Séries A, B, C e D)?' : 'Gerar Chave Mata-Mata Principal?')) return;
     
     const cat = getCurrentCategory();
-    
-    // Arrays para separar a galera
-    let qualifiers = []; // Para a sua lógica padrão (Ouro)
-    let splitQualifiers = { 'A': [], 'B': [], 'C': [], 'D': [] }; // Para o modo divisão
+    let qualifiers = []; 
+    let splitQualifiers = { 'A': [], 'B': [], 'C': [], 'D': [] }; 
     
     cat.groups.forEach((g, idx) => {
         const sorted = typeof getSortedPlayersForGroup === 'function' ? getSortedPlayersForGroup(cat, g) : g.players;
         
-        // Padrão (1º e 2º) - Para o botão verde
         if(sorted[0]) qualifiers.push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
         if(sorted[1]) qualifiers.push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
         
-        // Divisões (A=1º, B=2º, C=3º, D=4º) - Para o botão azul
         if(sorted[0]) splitQualifiers['A'].push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
         if(sorted[1]) splitQualifiers['B'].push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
         if(sorted[2]) splitQualifiers['C'].push({...sorted[2], rank:3, gIdx: idx, gName: g.name});
         if(sorted[3]) splitQualifiers['D'].push({...sorted[3], rank:4, gIdx: idx, gName: g.name});
     });
 
-    // ==========================================
-    // SE CLICOU NO BOTÃO AZUL (GERAR DIVISÕES A, B, C, D)
-    // ==========================================
     if (mode === 'split') {
         const generateOlympicBracket = (playersList, prefix) => {
             if(playersList.length < 2) return null;
@@ -1575,9 +1568,9 @@ function finalizeGroups(mode = 'standard') {
                 const p2 = playersList[pattern[i * 2 + 1] - 1] || {name:'BYE', id:'bye'};
                 let m = { id: `${prefix}-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
 
-                if (m.p1.id === 'bye' && m.p2.id === 'bye') { /* jogo nulo */ }
-                else if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP1 = 0; }
-                else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP2 = 0; }
+                if (m.p1.id === 'bye' && m.p2.id === 'bye') {}
+                else if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; }
+                else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; }
                 r1.push(m);
             }
             rounds.push(r1);
@@ -1590,12 +1583,9 @@ function finalizeGroups(mode = 'standard') {
                     let m2 = prev[i+1] || { id: `ghost2`, winner: null };
                     let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
                     let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
-
-                    let nm = { id: `${prefix}-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
-
-                    if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) { nm.winner = m1.winner; nm.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP2 = 0; }
-                    else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) { nm.winner = m2.winner; nm.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP1 = 0; }
-
+                    let nm = { id: `${prefix}-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
+                    if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) { nm.winner = m1.winner; nm.scoreP1 = 3; nm.scoreP2 = 0; }
+                    else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) { nm.winner = m2.winner; nm.scoreP2 = 3; nm.scoreP1 = 0; }
                     if (m1.id && !m1.id.startsWith('ghost')) m1.nextId = nm.id;
                     if (m2.id && !m2.id.startsWith('ghost')) m2.nextId = nm.id;
                     next.push(nm);
@@ -1605,162 +1595,101 @@ function finalizeGroups(mode = 'standard') {
             return { rounds };
         };
 
-        // =========================================================================
-        // A MÁGICA NOVA DO POPUP AQUI - Avalia se precisa juntar Série C e D
-        // =========================================================================
-        const totalGroups = cat.groups.length;
-        const totalQuartosColocados = splitQualifiers['D'].length;
-
-        // Se tem alguém na D, mas nem todos os grupos tem 4 pessoas (grupos quebrados)
-        if (totalQuartosColocados > 0 && totalQuartosColocados < totalGroups) {
-            const mensagem = "Atenção: Os grupos têm tamanhos diferentes.\n\nAlguns atletas ficarão sozinhos ou com poucos jogos na Série D.\nDeseja MESCLAR os 3ºs e 4ºs colocados numa única Série C Consolação?\n\n[ OK ] = SIM, juntar todos na Série C.\n[ CANCELAR ] = NÃO, gerar a Série D separada.";
-            
-            if (confirm(mensagem)) {
-                // Joga a galera da D para dentro da C
-                splitQualifiers['C'] = splitQualifiers['C'].concat(splitQualifiers['D']);
-                // Esvazia a D para o sistema não gerar a aba dela
-                splitQualifiers['D'] = [];
-            }
-        }
-        // =========================================================================
-
-        cat.brackets = {}; // Cria as múltiplas chaves
+        cat.brackets = {}; 
         if (splitQualifiers['A'].length >= 2) cat.brackets['A'] = generateOlympicBracket(splitQualifiers['A'], 'bA');
         if (splitQualifiers['B'].length >= 2) cat.brackets['B'] = generateOlympicBracket(splitQualifiers['B'], 'bB');
         if (splitQualifiers['C'].length >= 2) cat.brackets['C'] = generateOlympicBracket(splitQualifiers['C'], 'bC');
         if (splitQualifiers['D'].length >= 2) cat.brackets['D'] = generateOlympicBracket(splitQualifiers['D'], 'bD');
 
         let chavesGeradas = Object.keys(cat.brackets);
-        if (chavesGeradas.length === 0) { showToast('Nenhum grupo formado para as divisões', 'error'); return; }
-
-        window.activeSplitLevel = chavesGeradas[0]; // Seleciona a primeira aba disponível (A)
-        cat.bracket = cat.brackets[window.activeSplitLevel]; // Aponta a visualização pra ela
+        if (chavesGeradas.length === 0) return;
+        window.activeSplitLevel = chavesGeradas[0];
+        cat.bracket = cat.brackets[window.activeSplitLevel];
         cat.status = 'bracket';
-
-        if(typeof save === 'function') save(); 
-        if(typeof switchTab === 'function') switchTab('bracket'); 
-        showToast('Divisões A, B, C e D Geradas com sucesso!', 'success'); 
-        if(typeof updateDashboard === 'function') updateDashboard();
-        return; // Termina a função aqui para não rodar a lógica antiga
+        save(); switchTab('bracket'); updateDashboard();
+        return;
     }
 
     // ==========================================
-    // SE CLICOU NO BOTÃO VERDE (LÓGICA PADRÃO INTACTA)
+    // LÓGICA DO BOTÃO VERDE (CORRIGIDA PARA 3 GRUPOS)
     // ==========================================
-    if(qualifiers.length < 2) { showToast('Poucos classificados', 'error'); return; }
-    
-    // Se tinha divisões antigas salvas, ele apaga para focar na padrão
-    delete cat.brackets; 
-
     const numGroups = cat.groups.length;
     let rounds = []; 
     let matchId = 1;
 
-    // A SUA REGRA EXCLUSIVA PARA 3 GRUPOS
     if (numGroups === 3) {
-        const firstA = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1º Grupo A', id:'ghost'};
-        const firstB = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1º Grupo B', id:'ghost'};
-        const firstC = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1º Grupo C', id:'ghost'};
-        const secondA = qualifiers.find(q => q.rank === 2 && q.gIdx === 0) || {name:'2º Grupo A', id:'ghost'};
-        const secondB = qualifiers.find(q => q.rank === 2 && q.gIdx === 1) || {name:'2º Grupo B', id:'ghost'};
-        const secondC = qualifiers.find(q => q.rank === 2 && q.gIdx === 2) || {name:'2º Grupo C', id:'ghost'};
+        // Busca os atletas reais que se classificaram
+        const p1A = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1ºA', id:'g1a'};
+        const p1B = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1ºB', id:'g1b'};
+        const p1C = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1ºC', id:'g1c'};
+        const p2A = qualifiers.find(q => q.rank === 2 && q.gIdx === 0) || {name:'2ºA', id:'g2a'};
+        const p2B = qualifiers.find(q => q.rank === 2 && q.gIdx === 1) || {name:'2ºB', id:'g2b'};
+        const p2C = qualifiers.find(q => q.rank === 2 && q.gIdx === 2) || {name:'2ºC', id:'g2c'};
         const bye = {name: 'BYE', id: 'bye'};
 
-        let r1 = [];
-        let m1 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:firstA.name, id:firstA.id}, p2: {name:bye.name, id:bye.id}, scoreP1: typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3, scoreP2: 0, winner: {name:firstA.name, id:firstA.id} };
-        let m2 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:secondB.name, id:secondB.id}, p2: {name:secondC.name, id:secondC.id}, scoreP1: null, scoreP2: null, winner: null };
-        let m3 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:firstC.name, id:firstC.id}, p2: {name:secondA.name, id:secondA.id}, scoreP1: null, scoreP2: null, winner: null };
-        let m4 = { id: `b-r1-${matchId++}`, round: 1, p1: {name:bye.name, id:bye.id}, p2: {name:firstB.name, id:firstB.id}, scoreP1: 0, scoreP2: typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3, winner: {name:firstB.name, id:firstB.id} };
-        
-        r1.push(m1, m2, m3, m4);
+        // ROUND 1: QUARTAS DE FINAL COM BYES E CRUZAMENTOS CERTOS
+        let r1 = [
+            { id: `b-r1-1`, round: 1, p1: p1A, p2: bye, scoreP1: 3, scoreP2: 0, winner: p1A }, // 1ºA descansa
+            { id: `b-r1-2`, round: 1, p1: p2B, p2: p2C, scoreP1: null, scoreP2: null, winner: null }, // 2ºB x 2ºC
+            { id: `b-r1-3`, round: 1, p1: p1C, p2: p2A, scoreP1: null, scoreP2: null, winner: null }, // 1ºC x 2ºA
+            { id: `b-r1-4`, round: 1, p1: bye, p2: p1B, scoreP1: 0, scoreP2: 3, winner: p1B }  // 1ºB descansa
+        ];
         rounds.push(r1);
 
-        let totalRounds = 3; 
-        for(let r=2; r<=totalRounds; r++) {
-            let prev = rounds[rounds.length-1];
-            let next = [];
-            for(let i=0; i<prev.length; i+=2) {
-                let mPrev1 = prev[i], mPrev2 = prev[i+1];
-                let p1Name = mPrev1.winner ? mPrev1.winner.name : `Venc. J${mPrev1.id.split('-').pop()}`;
-                let p2Name = mPrev2.winner ? mPrev2.winner.name : `Venc. J${mPrev2.id.split('-').pop()}`;
-
-                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: mPrev1.winner ? mPrev1.winner.id : null}, p2: {name: p2Name, id: mPrev2.winner ? mPrev2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [mPrev1.id, mPrev2.id] };
-                
-                mPrev1.nextId = nm.id; 
-                mPrev2.nextId = nm.id;
-                next.push(nm);
-            }
-            rounds.push(next);
+        // ROUND 2: SEMIFINAL
+        let r2 = [];
+        for(let i=0; i<r1.length; i+=2) {
+            let mPrev1 = r1[i], mPrev2 = r1[i+1];
+            let p1 = mPrev1.winner ? mPrev1.winner : {name: `Venc. J${mPrev1.id.split('-').pop()}`, id: null};
+            let p2 = mPrev2.winner ? mPrev2.winner : {name: `Venc. J${mPrev2.id.split('-').pop()}`, id: null};
+            let nm = { id: `b-r2-${matchId++}`, round: 2, p1, p2, scoreP1: null, scoreP2: null, winner: null, sources: [mPrev1.id, mPrev2.id] };
+            mPrev1.nextId = nm.id; mPrev2.nextId = nm.id;
+            r2.push(nm);
         }
+        rounds.push(r2);
+
+        // ROUND 3: FINAL
+        let mFinal = { id: `b-r3-${matchId++}`, round: 3, p1: {name: 'Finalista 1'}, p2: {name: 'Finalista 2'}, scoreP1: null, scoreP2: null, winner: null, sources: [r2[0].id, r2[1].id] };
+        r2[0].nextId = mFinal.id; r2[1].nextId = mFinal.id;
+        rounds.push([mFinal]);
 
     } else {
-        // A SUA LÓGICA OLÍMPICA PADRÃO PARA OUTROS GRUPOS
-        let size = 2; 
-        while(size < qualifiers.length) size *= 2;
-
-        qualifiers.sort((a,b) => {
-            if(a.rank !== b.rank) return a.rank - b.rank; 
-            return b.points - a.points; 
-        });
+        // LÓGICA PADRÃO PARA 2, 4 OU 8 GRUPOS (MANTIDA)
+        let size = 2; while(size < qualifiers.length) size *= 2;
+        qualifiers.sort((a,b) => a.rank !== b.rank ? a.rank - b.rank : (b.points || 0) - (a.points || 0));
 
         const getSeedingPattern = (n) => {
-            let rounds = [1, 2];
+            let rds = [1, 2];
             for (let r = 2; r < n; r *= 2) {
                 let next = [];
-                for (let i = 0; i < rounds.length; i++) {
-                    next.push(rounds[i]);
-                    next.push((r * 2 + 1) - rounds[i]);
-                }
-                rounds = next;
+                for (let i = 0; i < rds.length; i++) { next.push(rds[i]); next.push((r * 2 + 1) - rds[i]); }
+                rds = next;
             }
-            return rounds;
+            return rds;
         };
 
         const pattern = getSeedingPattern(size);
         let r1 = [];
-
         for(let i=0; i < size/2; i++) {
-            const seed1 = pattern[i * 2] - 1;
-            const seed2 = pattern[i * 2 + 1] - 1;
-
-            const p1 = qualifiers[seed1] || {name:'BYE', id:'bye'};
-            const p2 = qualifiers[seed2] || {name:'BYE', id:'bye'}; 
-            
+            const p1 = qualifiers[pattern[i * 2] - 1] || {name:'BYE', id:'bye'};
+            const p2 = qualifiers[pattern[i * 2 + 1] - 1] || {name:'BYE', id:'bye'}; 
             let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
-            
-            if (m.p1.id === 'bye' && m.p2.id === 'bye') {
-            } else if (m.p1.id === 'bye') {
-                m.winner = m.p2; m.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP1 = 0;
-            } else if (m.p2.id === 'bye') {
-                m.winner = m.p1; m.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; m.scoreP2 = 0;
-            }
+            if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; }
+            else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; }
             r1.push(m);
         }
         rounds.push(r1);
 
         let totalRounds = Math.log2(size);
         for(let r=2; r<=totalRounds; r++) {
-            let prev = rounds[rounds.length-1];
-            let next = [];
+            let prev = rounds[rounds.length-1]; let next = [];
             for(let i=0; i<prev.length; i+=2) {
                 let m1 = prev[i], m2 = prev[i+1];
-                if (!m1) m1 = { id: `ghost1`, winner: null };
-                if (!m2) m2 = { id: `ghost2`, winner: null };
-
                 let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
                 let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
-
-                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id], isThirdPlace: false };
-                
-                if (m1.winner && !m2.winner && m2.id.startsWith('ghost')) {
-                     nm.winner = m1.winner; nm.scoreP1 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP2 = 0;
-                } else if (m2.winner && !m1.winner && m1.id.startsWith('ghost')) {
-                     nm.winner = m2.winner; nm.scoreP2 = typeof MATCH_WIN_SETS !== 'undefined' ? MATCH_WIN_SETS : 3; nm.scoreP1 = 0;
-                }
-
-                if (m1.id && !m1.id.startsWith('ghost')) m1.nextId = nm.id; 
-                if (m2.id && !m2.id.startsWith('ghost')) m2.nextId = nm.id;
-                
+                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
+                if (m1.winner && !m2.winner) { nm.winner = m1.winner; nm.scoreP1 = 3; nm.scoreP2 = 0; }
+                m1.nextId = nm.id; m2.nextId = nm.id;
                 next.push(nm);
             }
             rounds.push(next);
@@ -1768,10 +1697,7 @@ function finalizeGroups(mode = 'standard') {
     }
     
     cat.bracket = { rounds }; cat.status = 'bracket';
-    if(typeof save === 'function') save(); 
-    if(typeof switchTab === 'function') switchTab('bracket'); 
-    showToast('Mata-Mata Gerado e Protegido!', 'success'); 
-    if(typeof updateDashboard === 'function') updateDashboard();
+    save(); switchTab('bracket'); updateDashboard();
 }
 
 
