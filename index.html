@@ -2213,50 +2213,43 @@ function printScoresheets(phase) {
                 showToast('É necessário ter grupos para gerar o Preview.', 'error'); return;
             }
             
-            // Simula a chave matematicamente para gerar os papéis certos
-            let qualifiers = [];
-            if (cat.groups.length === 3) {
-                // ORDEM MÁGICA PARA 3 GRUPOS (O Mirim que já consertamos)
-                qualifiers = [
-                    {name:'1º Grupo A'}, {name:'1º Grupo B'}, {name:'2º Grupo B'}, {name:'2º Grupo A'}, 
-                    {name:'1º Grupo C'}, {name:'2º Grupo C'}, {name:'BYE'}, {name:'BYE'}
-                ];
-            } else if (cat.groups.length === 5) {
-                // ORDEM MÁGICA ESPELHADA NO PAPEL DA ALTM (Sua Foto)
-                qualifiers = [
-                    {name:'1º Grupo A'}, // Linha 1 (ex: Bruno)
-                    {name:'BYE'},        // Linha 2
-                    {name:'2º Grupo B'}, // Linha 3 (ex: Pedro)
-                    {name:'2º Grupo C'}, // Linha 4 (ex: Diogo Netto)
-                    {name:'1º Grupo E'}, // Linha 5 (ex: Victor)
-                    {name:'BYE'},        // Linha 6
-                    {name:'BYE'},        // Linha 7
-                    {name:'1º Grupo D'}, // Linha 8 (ex: Richard)
-                    {name:'1º Grupo C'}, // Linha 9 (ex: João Motta)
-                    {name:'BYE'},        // Linha 10
-                    {name:'2º Grupo E'}, // Linha 11 (ex: Rafael)
-                    {name:'BYE'},        // Linha 12
-                    {name:'1º Grupo B'}, // Linha 13 (ex: Lucas Netto)
-                    {name:'BYE'},        // Linha 14
-                    {name:'2º Grupo D'}, // Linha 15 (ex: Lucas Franco)
-                    {name:'2º Grupo A'}  // Linha 16 (ex: Samuel)
-                ];
-            } else {
-                cat.groups.forEach(g => { qualifiers.push({name:`1º ${g.name}`}); qualifiers.push({name:`2º ${g.name}`}); });
-            }
-            
-            let size = 2; while(size < qualifiers.length) size *= 2;
             let mId = 1; let r1 = [];
+            let size = 0;
             
-            // Rodada 1 do Preview
-            for(let i=0; i<size; i+=2) {
-                let p1 = qualifiers[i] || {name:'BYE'};
-                let p2 = qualifiers[size-1-i] || {name:'BYE'};
-                r1.push({ p1, p2, id: `prev-${mId++}` });
+            // ========================================================
+            // REGRA DIRETA: ESPELHO DO PREVIEW (SEM MATEMÁTICA LOUCA)
+            // ========================================================
+            if (cat.groups.length === 3) {
+                size = 8;
+                r1.push({ p1: {name:'1º Grupo A'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'2º Grupo B'}, p2: {name:'2º Grupo C'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'1º Grupo C'}, p2: {name:'2º Grupo A'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'BYE'}, p2: {name:'1º Grupo B'}, id: `prev-${mId++}` });
+            } else if (cat.groups.length === 5) {
+                size = 16;
+                // ORDEM EXATA DO PAPEL DA ALTM
+                r1.push({ p1: {name:'1º Grupo A'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'2º Grupo B'}, p2: {name:'2º Grupo C'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'1º Grupo E'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'BYE'}, p2: {name:'1º Grupo D'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'1º Grupo C'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'2º Grupo E'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'1º Grupo B'}, p2: {name:'BYE'}, id: `prev-${mId++}` });
+                r1.push({ p1: {name:'2º Grupo D'}, p2: {name:'2º Grupo A'}, id: `prev-${mId++}` });
+            } else {
+                // CATEGORIAS COMUNS (Matemática original mantida)
+                let qualifiers = [];
+                cat.groups.forEach(g => { qualifiers.push({name:`1º ${g.name}`}); qualifiers.push({name:`2º ${g.name}`}); });
+                size = 2; while(size < qualifiers.length) size *= 2;
+                for(let i=0; i<size; i+=2) {
+                    let p1 = qualifiers[i] || {name:'BYE'};
+                    let p2 = qualifiers[size-1-i] || {name:'BYE'};
+                    r1.push({ p1, p2, id: `prev-${mId++}` });
+                }
             }
             targetRounds.push(r1);
             
-            // Restante das rodadas simuladas
+            // Restante das rodadas simuladas (Semifinal e Final)
             let totalR = Math.log2(size);
             for(let r=2; r<=totalR; r++) {
                 let prevR = targetRounds[targetRounds.length-1];
