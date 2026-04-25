@@ -2199,10 +2199,31 @@ function printScoresheets(phase) {
             // Simula a chave matematicamente para gerar os papéis certos
             let qualifiers = [];
             if (cat.groups.length === 3) {
-                // ORDEM MÁGICA CORRIGIDA PARA 3 GRUPOS (Chave de 8 com 2 BYEs)
+                // ORDEM MÁGICA PARA 3 GRUPOS (O Mirim que já consertamos)
                 qualifiers = [
                     {name:'1º Grupo A'}, {name:'1º Grupo B'}, {name:'2º Grupo B'}, {name:'2º Grupo A'}, 
                     {name:'1º Grupo C'}, {name:'2º Grupo C'}, {name:'BYE'}, {name:'BYE'}
+                ];
+            } else if (cat.groups.length === 5) {
+                // ORDEM MÁGICA CORRIGIDA PARA 5 GRUPOS (O Adulto!)
+                // Isso espalha o 1ºA e o 1ºB para as pontas e separa os outros grupos.
+                qualifiers = [
+                    {name:'1º Grupo A'}, // Vai ficar na ponta de cima
+                    {name:'BYE'},        
+                    {name:'1º Grupo E'}, 
+                    {name:'BYE'},        
+                    {name:'1º Grupo C'}, 
+                    {name:'BYE'},        
+                    {name:'2º Grupo B'}, 
+                    {name:'2º Grupo E'}, 
+                    {name:'1º Grupo D'}, 
+                    {name:'BYE'},        
+                    {name:'2º Grupo C'}, 
+                    {name:'BYE'},        
+                    {name:'2º Grupo A'}, 
+                    {name:'2º Grupo D'}, 
+                    {name:'1º Grupo B'}, // Vai ficar na ponta de baixo
+                    {name:'BYE'}         
                 ];
             } else {
                 cat.groups.forEach(g => { qualifiers.push({name:`1º ${g.name}`}); qualifiers.push({name:`2º ${g.name}`}); });
