@@ -1837,7 +1837,23 @@ function generateBracketPreview() {
             p2: { name: `1º Grupo B`, id: `preview-1-1`, rank: 1 },
             id: `preview-3`
         });
-    } else {
+    } 
+    // =======================================================
+    // MUDANÇA CIRÚRGICA: REGRA EXCLUSIVA PARA 5 GRUPOS (ALTM)
+    // =======================================================
+    else if (numGroups === 5) {
+        // Posições fixadas EXATAMENTE como no papel da ALTM
+        matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `BYE` }, id: `preview-0` });
+        matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `2º Grupo C` }, id: `preview-1` });
+        matches.push({ p1: { name: `1º Grupo E` }, p2: { name: `BYE` }, id: `preview-2` });
+        matches.push({ p1: { name: `BYE` }, p2: { name: `1º Grupo D` }, id: `preview-3` });
+        matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `BYE` }, id: `preview-4` });
+        matches.push({ p1: { name: `2º Grupo E` }, p2: { name: `BYE` }, id: `preview-5` });
+        matches.push({ p1: { name: `1º Grupo B` }, p2: { name: `BYE` }, id: `preview-6` });
+        matches.push({ p1: { name: `2º Grupo D` }, p2: { name: `2º Grupo A` }, id: `preview-7` });
+    }
+    // =======================================================
+    else {
         // SE FOR OUTRA QUANTIDADE DE GRUPOS, USA A LÓGICA PADRÃO (Genérica)
         let qualifiers = [];
         cat.groups.forEach((g, idx) => {
@@ -1883,6 +1899,7 @@ function generateBracketPreview() {
             if (roundsLeft === 1) name = 'FINAL';
             else if (roundsLeft === 2) name = 'SEMIFINAL';
             else if (roundsLeft === 3) name = 'QUARTAS DE FINAL';
+            else if (roundsLeft === 4) name = 'OITAVAS DE FINAL'; // Adicionado para garantir o nome certo na chave de 16
 
             return `
             <div class="round-column">
@@ -2205,25 +2222,24 @@ function printScoresheets(phase) {
                     {name:'1º Grupo C'}, {name:'2º Grupo C'}, {name:'BYE'}, {name:'BYE'}
                 ];
             } else if (cat.groups.length === 5) {
-                // ORDEM MÁGICA CORRIGIDA PARA 5 GRUPOS (O Adulto!)
-                // Isso espalha o 1ºA e o 1ºB para as pontas e separa os outros grupos.
+                // ORDEM MÁGICA ESPELHADA NO PAPEL DA ALTM (Sua Foto)
                 qualifiers = [
-                    {name:'1º Grupo A'}, // Vai ficar na ponta de cima
-                    {name:'BYE'},        
-                    {name:'1º Grupo E'}, 
-                    {name:'BYE'},        
-                    {name:'1º Grupo C'}, 
-                    {name:'BYE'},        
-                    {name:'2º Grupo B'}, 
-                    {name:'2º Grupo E'}, 
-                    {name:'1º Grupo D'}, 
-                    {name:'BYE'},        
-                    {name:'2º Grupo C'}, 
-                    {name:'BYE'},        
-                    {name:'2º Grupo A'}, 
-                    {name:'2º Grupo D'}, 
-                    {name:'1º Grupo B'}, // Vai ficar na ponta de baixo
-                    {name:'BYE'}         
+                    {name:'1º Grupo A'}, // Linha 1 (ex: Bruno)
+                    {name:'BYE'},        // Linha 2
+                    {name:'2º Grupo B'}, // Linha 3 (ex: Pedro)
+                    {name:'2º Grupo C'}, // Linha 4 (ex: Diogo Netto)
+                    {name:'1º Grupo E'}, // Linha 5 (ex: Victor)
+                    {name:'BYE'},        // Linha 6
+                    {name:'BYE'},        // Linha 7
+                    {name:'1º Grupo D'}, // Linha 8 (ex: Richard)
+                    {name:'1º Grupo C'}, // Linha 9 (ex: João Motta)
+                    {name:'BYE'},        // Linha 10
+                    {name:'2º Grupo E'}, // Linha 11 (ex: Rafael)
+                    {name:'BYE'},        // Linha 12
+                    {name:'1º Grupo B'}, // Linha 13 (ex: Lucas Netto)
+                    {name:'BYE'},        // Linha 14
+                    {name:'2º Grupo D'}, // Linha 15 (ex: Lucas Franco)
+                    {name:'2º Grupo A'}  // Linha 16 (ex: Samuel)
                 ];
             } else {
                 cat.groups.forEach(g => { qualifiers.push({name:`1º ${g.name}`}); qualifiers.push({name:`2º ${g.name}`}); });
