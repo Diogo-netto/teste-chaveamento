@@ -1523,7 +1523,7 @@ ${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt
     if(btn) btn.classList.toggle('hidden', !allDone);
 }
 // =======================================================================
-// BRACKET HÍBRIDO (Modo Padrão com proteção 3 grupos + Modo Divisão ABCD)
+// BRACKET HÍBRIDO (Modo Padrão + ALTM 5 Grupos + 3 Grupos + Modo Divisão ABCD)
 // =======================================================================
 function finalizeGroups(mode = 'standard') {
     if(!confirm(mode === 'split' ? 'Gerar Divisões (Séries A, B, C e D)?' : 'Gerar Chave Mata-Mata Principal?')) return;
@@ -1611,14 +1611,14 @@ function finalizeGroups(mode = 'standard') {
     }
 
     // ==========================================
-    // LÓGICA DO BOTÃO VERDE (CORRIGIDA PARA 3 GRUPOS)
+    // LÓGICA DO BOTÃO VERDE
     // ==========================================
     const numGroups = cat.groups.length;
     let rounds = []; 
     let matchId = 1;
 
     if (numGroups === 3) {
-        // Busca os atletas reais que se classificaram
+        // LÓGICA EXCLUSIVA PARA 3 GRUPOS
         const p1A = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1ºA', id:'g1a'};
         const p1B = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1ºB', id:'g1b'};
         const p1C = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1ºC', id:'g1c'};
@@ -1627,16 +1627,14 @@ function finalizeGroups(mode = 'standard') {
         const p2C = qualifiers.find(q => q.rank === 2 && q.gIdx === 2) || {name:'2ºC', id:'g2c'};
         const bye = {name: 'BYE', id: 'bye'};
 
-        // ROUND 1: QUARTAS DE FINAL COM BYES E CRUZAMENTOS CERTOS
         let r1 = [
-            { id: `b-r1-1`, round: 1, p1: p1A, p2: bye, scoreP1: 3, scoreP2: 0, winner: p1A }, // 1ºA descansa
-            { id: `b-r1-2`, round: 1, p1: p2B, p2: p2C, scoreP1: null, scoreP2: null, winner: null }, // 2ºB x 2ºC
-            { id: `b-r1-3`, round: 1, p1: p1C, p2: p2A, scoreP1: null, scoreP2: null, winner: null }, // 1ºC x 2ºA
-            { id: `b-r1-4`, round: 1, p1: bye, p2: p1B, scoreP1: 0, scoreP2: 3, winner: p1B }  // 1ºB descansa
+            { id: `b-r1-1`, round: 1, p1: p1A, p2: bye, scoreP1: 3, scoreP2: 0, winner: p1A }, 
+            { id: `b-r1-2`, round: 1, p1: p2B, p2: p2C, scoreP1: null, scoreP2: null, winner: null }, 
+            { id: `b-r1-3`, round: 1, p1: p1C, p2: p2A, scoreP1: null, scoreP2: null, winner: null }, 
+            { id: `b-r1-4`, round: 1, p1: bye, p2: p1B, scoreP1: 0, scoreP2: 3, winner: p1B }  
         ];
         rounds.push(r1);
 
-        // ROUND 2: SEMIFINAL
         let r2 = [];
         for(let i=0; i<r1.length; i+=2) {
             let mPrev1 = r1[i], mPrev2 = r1[i+1];
@@ -1648,13 +1646,76 @@ function finalizeGroups(mode = 'standard') {
         }
         rounds.push(r2);
 
-        // ROUND 3: FINAL
         let mFinal = { id: `b-r3-${matchId++}`, round: 3, p1: {name: 'Finalista 1'}, p2: {name: 'Finalista 2'}, scoreP1: null, scoreP2: null, winner: null, sources: [r2[0].id, r2[1].id] };
         r2[0].nextId = mFinal.id; r2[1].nextId = mFinal.id;
         rounds.push([mFinal]);
 
+    } else if (numGroups === 5) {
+        // ========================================================
+        // NOVIDADE: LÓGICA OFICIAL DA ALTM PARA 5 GRUPOS (Adulto)
+        // ========================================================
+        const p1A = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1ºA', id:'g1a'};
+        const p1B = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1ºB', id:'g1b'};
+        const p1C = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1ºC', id:'g1c'};
+        const p1D = qualifiers.find(q => q.rank === 1 && q.gIdx === 3) || {name:'1ºD', id:'g1d'};
+        const p1E = qualifiers.find(q => q.rank === 1 && q.gIdx === 4) || {name:'1ºE', id:'g1e'};
+        const p2A = qualifiers.find(q => q.rank === 2 && q.gIdx === 0) || {name:'2ºA', id:'g2a'};
+        const p2B = qualifiers.find(q => q.rank === 2 && q.gIdx === 1) || {name:'2ºB', id:'g2b'};
+        const p2C = qualifiers.find(q => q.rank === 2 && q.gIdx === 2) || {name:'2ºC', id:'g2c'};
+        const p2D = qualifiers.find(q => q.rank === 2 && q.gIdx === 3) || {name:'2ºD', id:'g2d'};
+        const p2E = qualifiers.find(q => q.rank === 2 && q.gIdx === 4) || {name:'2ºE', id:'g2e'};
+        const bye = {name: 'BYE', id: 'bye'};
+
+        // ORDEM MÁGICA DA ALTM
+        let altm16 = [
+            p1A, bye, 
+            p2B, p2C, 
+            p1E, bye, 
+            bye, p1D, 
+            p1C, bye, 
+            p2E, bye, 
+            p1B, bye, 
+            p2D, p2A
+        ];
+
+        // OITAVAS DE FINAL
+        let r1 = [];
+        for(let i=0; i < 8; i++) {
+            let p1 = altm16[i * 2];
+            let p2 = altm16[i * 2 + 1];
+            let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
+            
+            // Avança automaticamente quem tirou BYE
+            if (m.p1.id === 'bye' && m.p2.id === 'bye') {
+                m.winner = bye; m.scoreP1 = 0; m.scoreP2 = 0;
+            } else if (m.p1.id === 'bye') { 
+                m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; 
+            } else if (m.p2.id === 'bye') { 
+                m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; 
+            }
+            r1.push(m);
+        }
+        rounds.push(r1);
+
+        // QUARTAS, SEMI E FINAL
+        for(let r=2; r<=4; r++) {
+            let prev = rounds[rounds.length-1]; let next = [];
+            for(let i=0; i<prev.length; i+=2) {
+                let m1 = prev[i], m2 = prev[i+1];
+                let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
+                let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
+                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
+                
+                m1.nextId = nm.id; m2.nextId = nm.id;
+                next.push(nm);
+            }
+            rounds.push(next);
+        }
+
     } else {
-        // LÓGICA PADRÃO PARA 2, 4 OU 8 GRUPOS (MANTIDA)
+        // =======================================================
+        // LÓGICA PADRÃO PARA 2, 4 OU 8 GRUPOS (MANTIDA INTACTA)
+        // =======================================================
         let size = 2; while(size < qualifiers.length) size *= 2;
         qualifiers.sort((a,b) => a.rank !== b.rank ? a.rank - b.rank : (b.points || 0) - (a.points || 0));
 
