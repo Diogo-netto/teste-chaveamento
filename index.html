@@ -115,9 +115,43 @@
     background-color: #cbd5e1;
     z-index: 0;
 }
+
+
+/* ========================================= */
+        /* MODO DE IMPRESSÃO - CHAVE MATA-MATA       */
+        /* ========================================= */
+        @media print {
+            /* 1. Esconde TUDO do site por padrão */
+            body.imprimindo-chave * {
+                visibility: hidden;
+            }
+            
+            /* 2. Torna visível APENAS a área do Mata-Mata (#bracketCanvas) */
+            body.imprimindo-chave #bracketCanvas, 
+            body.imprimindo-chave #bracketCanvas * {
+                visibility: visible;
+            }
+            
+            /* 3. Puxa a chave para o topo da folha A4 */
+            body.imprimindo-chave #bracketCanvas {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            /* 4. Força a impressora a imprimir as cores de fundo (o verde, laranja, etc) */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
+
 
 <script>
 window.onerror = function(msg, url, line) {
@@ -278,7 +312,7 @@ window.onerror = function(msg, url, line) {
             </div>
         </div>
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6 flex gap-4 flex-wrap">
-            <input type="text" id="newPlayerName" placeholder="Nome do Atleta" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" onkeydown="if(event.key==='Enter') document.getElementById('newPlayerPointsRanking').focus()">
+            <input type="text" id="newPlayerName" placeholder="Nome do Atleta" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" oninput="this.value = this.value.replace(/(?:^|\s)\S/g, l => l.toUpperCase())" onkeydown="if(event.key==='Enter') document.getElementById('newPlayerPointsRanking').focus()">
             
             <div class="flex flex-col">
                 <label class="text-xs text-gray-500 font-bold mb-1 ml-1">Pontos Ranking</label>
@@ -2014,13 +2048,13 @@ function openScoreModal(type, mid) {
     if (btnWo1) btnWo1.innerText = `WO (${n1 || 'P1'})`;
     if (btnWo2) btnWo2.innerText = `WO (${n2 || 'P2'})`;
     
-    // =========================================
-    // CADEADO DE SEGURANÇA: SÓ AFETA O ABSOLUTO
-    // =========================================
-    let maxSets = 5; // Regra Padrão: 5 sets para todo mundo (Sábado inteiro, Mata-Mata, etc)
-    
-    // Cadeado VIP: Só ativa se o nome tiver "absoluto livre jf" E for fase de grupos
-if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type === 'group') {
+ // =========================================
+// CADEADO DE SEGURANÇA: SÓ AFETA O ABSOLUTO
+// =========================================
+let maxSets = 5; // Regra Padrão: 5 sets para todo mundo (Sábado inteiro, Mata-Mata, etc)
+
+// Cadeado VIP: Só ativa se o nome tiver o número "3" E for fase de grupos
+if (cat.name && cat.name.toLowerCase().includes('3') && type === 'group') {
     maxSets = 3;
 }
     
@@ -2243,6 +2277,20 @@ if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type ===
     checkAndAdvanceTables();
 }
 
+
+function printReport(type) {
+    if (type === 'bracket') {
+        // Coloca uma classe temporária no body para ativar o nosso CSS de impressão
+        document.body.classList.add('imprimindo-chave');
+        
+        // Chama a tela de impressão nativa do navegador
+        window.print();
+        
+        // Remove a classe logo após a impressão terminar ou ser cancelada
+        document.body.classList.remove('imprimindo-chave');
+    }
+}
+
 // PDF ENGINE: Súmulas Compactas (4 por página) e Inteligentes
 function printScoresheets(phase) {
     const { jsPDF } = window.jspdf;
@@ -2260,7 +2308,7 @@ function printScoresheets(phase) {
                 const p1Name = cat.players.find(p => p.id === m.p1Id)?.name || 'Desconhecido';
                 const p2Name = cat.players.find(p => p.id === m.p2Id)?.name || 'Desconhecido';
                 const groupName = cat.groups.find(g => g.id === m.groupId)?.name || 'Grupo';
-                matchesToPrint.push({ p1: p1Name, p2: p2Name, info: `Fase de Grupos - ${groupName}` });
+                matchesToPrint.push({ p1: p1Name, p2: p2Name, info: `Fase de Grupos - ${groupName}`, matchObj: m });
             }
         });
     } 
@@ -2349,7 +2397,7 @@ function printScoresheets(phase) {
                     let infoStr = `${faseNome}${jogoNum ? ' - Jogo ' + jogoNum : ''}`;
                     if (m.isThirdPlace) infoStr = 'DISPUTA DE 3º LUGAR';
                     
-                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr });
+                    matchesToPrint.push({ p1: m.p1.name, p2: m.p2.name, info: infoStr, matchObj: m });
                 }
             });
         });
@@ -2408,6 +2456,36 @@ function printScoresheets(phase) {
         doc.setFontSize(10);
         doc.text(m.p1, 18, 41 + yOffset);
         doc.text(m.p2, 18, 49 + yOffset);
+
+        // =============================================================
+        // MOTOR DE PONTOS: SÓ ADICIONAR ESTE BLOCO!
+        // =============================================================
+        if (m.matchObj) {
+            let setsArray = m.matchObj.setScores || [];
+            if (setsArray.length === 0 && Array.isArray(m.matchObj.sets)) {
+                setsArray = m.matchObj.sets.map(s => {
+                    let pts = typeof s === 'string' ? s.split(/[/xX\-]/) : [];
+                    return { p1: pts[0] || '', p2: pts[1] || '' };
+                });
+            }
+            
+            doc.setFontSize(10);
+            setsArray.forEach((set, idx) => {
+                if (idx < 5) {
+                    let xCentro = 105 + (idx * 20); // Alinha com as colunas 1º SET, 2º SET...
+                    doc.text(set.p1.toString(), xCentro, 41 + yOffset, { align: 'center' });
+                    doc.text(set.p2.toString(), xCentro, 49 + yOffset, { align: 'center' });
+                }
+            }); 
+
+            // Preenche o nome do vencedor automaticamente
+            let vencedorNome = m.matchObj.winner?.name || (m.matchObj.winnerId === m.matchObj.p1Id ? m.p1 : (m.matchObj.winnerId === m.matchObj.p2Id ? m.p2 : ""));
+            if (vencedorNome) {
+                doc.setFontSize(9);
+                doc.text(vencedorNome, 33, 65 + yOffset);
+            }
+        }
+        // =============================================================
         
         // Rodapé (Assinaturas)
         doc.setFontSize(9);
