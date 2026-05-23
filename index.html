@@ -1560,12 +1560,27 @@ ${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt
 // BRACKET HÍBRIDO (Modo Padrão + ALTM 5 Grupos + 3 Grupos + Modo Divisão ABCD)
 // =======================================================================
 function finalizeGroups(mode = 'standard') {
-    if(!confirm(mode === 'split' ? 'Gerar Divisões (Séries A, B, C e D)?' : 'Gerar Chave Mata-Mata Principal?')) return;
+    let juntarNaSerieC = false;
+
+    // 🔥 CAIXINHA ÚNICA E INTELIGENTE 🔥
+    if (mode === 'split') {
+        const resposta = prompt("🏆 ESCOLHA O MODO DE DIVISÃO:\n\nDigite [ 1 ] para Divisão NORMAL (Séries A, B, C e D)\nDigite [ 2 ] para Divisão SEM SÉRIE D (O 4º lugar vai para a Série C)\n\nDeixe em branco e clique em Cancelar para abortar.");
+        
+        if (resposta === '1') {
+            juntarNaSerieC = false; // Varginha: Gera a Série D normal
+        } else if (resposta === '2') {
+            juntarNaSerieC = true;  // Lima Duarte: Puxa o 4º para a Série C
+        } else {
+            return; // Se a pessoa cancelar ou digitar qualquer outra coisa, o sistema aborta com segurança
+        }
+    } else {
+        if(!confirm('Gerar Chave Mata-Mata Principal?')) return;
+    }
     
     const cat = getCurrentCategory();
     let qualifiers = []; 
     let splitQualifiers = { 'A': [], 'B': [], 'C': [], 'D': [] }; 
-    
+
     cat.groups.forEach((g, idx) => {
         const sorted = typeof getSortedPlayersForGroup === 'function' ? getSortedPlayersForGroup(cat, g) : g.players;
         
@@ -1575,7 +1590,17 @@ function finalizeGroups(mode = 'standard') {
         if(sorted[0]) splitQualifiers['A'].push({...sorted[0], rank:1, gIdx: idx, gName: g.name});
         if(sorted[1]) splitQualifiers['B'].push({...sorted[1], rank:2, gIdx: idx, gName: g.name});
         if(sorted[2]) splitQualifiers['C'].push({...sorted[2], rank:3, gIdx: idx, gName: g.name});
-        if(sorted[3]) splitQualifiers['D'].push({...sorted[3], rank:4, gIdx: idx, gName: g.name});
+        
+        // 🔥 A MÁGICA DA ESCOLHA ACONTECE AQUI 🔥
+        if(sorted[3]) {
+            if (juntarNaSerieC) {
+                // Opção 2: Padrão Lima Duarte (junta no C)
+                splitQualifiers['C'].push({...sorted[3], rank:3.5, gIdx: idx, gName: g.name});
+            } else {
+                // Opção 1: Padrão Varginha (vai pro D normal)
+                splitQualifiers['D'].push({...sorted[3], rank:4, gIdx: idx, gName: g.name});
+            }
+        }
     });
 
     if (mode === 'split') {
