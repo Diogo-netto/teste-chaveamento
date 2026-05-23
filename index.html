@@ -2113,14 +2113,29 @@ function confirmScore() {
 
             const maior = Math.max(p1, p2);
             const menor = Math.min(p1, p2);
+            const lead = maior - menor; // Vantagem
+
+            // Validação 1: Pelo menos 11 pontos no placar do vencedor
             if(maior < 11) {
                 showToast(`❌ Set ${i}: Um dos placares deve ser no mínimo 11!`, 'error');
                 return;
             }
-            if(maior - menor < 2) {
+
+            // Validação 2: Diferença mínima de 2 pontos
+            if(lead < 2) {
                 showToast(`❌ Set ${i}: Diferença mínima é 2 pontos! (ex: 11x9)`, 'error');
                 return;
             }
+
+            // =============================================================
+            // 👇 TRAVA ANTI-ERRO DE DIGITAÇÃO: SÓ ADICIONEI ESTE BLOCO! 👇
+            // Se o placar for maior que 11, a vantagem deve ser EXATAMENTE 2.
+            // Isso impede erros como 114x110, aceitando apenas 114x112, etc.
+            if(maior > 11 && lead !== 2) {
+                showToast(`❌ Set ${i}: Com placar maior que 11, a vantagem deve ser exatamente 2 (ex: ${maior}x${maior-2})!`, 'error');
+                return;
+            }
+            // =============================================================
 
             setScores.push({p1, p2});
             points1 += p1; points2 += p2;
@@ -2130,36 +2145,31 @@ function confirmScore() {
     }
 
     // =======================================================
-    // A MÁGICA DOS SETS AQUI: Lê a regra Inteligente (2 ou 3 vitórias)
+    // CADEADO UNIVERSAL ARRUMADO (ACEITA 2 OU 3 VITÓRIAS)
     // =======================================================
-    const cat = getCurrentCategory();
-    const type = curMatch.type; // Descobre se é grupo ou chave
-    
-    let setsToWin = cat.winSets || 3; // Padrão de fábrica: 3 vitórias (Melhor de 5)
-
-    // Na função confirmScore, mude para:
-if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type === 'group') {
-    setsToWin = 2; 
-}
-
-    if(setsWon1 < setsToWin && setsWon2 < setsToWin) {
-        showToast(`Faltam sets: precisa chegar em ${setsToWin} vitórias.`, 'error');
+    if (setsWon1 < 2 && setsWon2 < 2) {
+        showToast('❌ Faltam sets: O vencedor precisa de pelo menos 2 vitórias.', 'error');
         return;
     }
-
-    // NOVA TRAVA: Bloqueia se o mesário colocar vitórias a mais
-    if(setsWon1 > setsToWin || setsWon2 > setsToWin) {
-        showToast(`Sets a mais! A regra desta fase é de apenas ${setsToWin} vitórias.`, 'error');
+    
+    if (setsWon1 > 3 || setsWon2 > 3) {
+        showToast('❌ Sets a mais! O limite máximo é de 3 vitórias.', 'error');
         return;
     }
     // =======================================================
 
     if(setsWon1 === setsWon2) { showToast('Empate não permitido.', 'error'); return; }
 
+    const cat = getCurrentCategory();
+    const type = curMatch.type; // Descobre se é grupo ou chave
     const { m } = curMatch; // 'type' já foi extraído lá em cima
+    
     m.scoreP1 = setsWon1; m.scoreP2 = setsWon2;
     m.pointsP1 = points1; m.pointsP2 = points2;
     m.setScores = setScores;
+    
+    // LINHA QUE FIZEMOS HOJE MAIS CEDO PARA O MATA-MATA NÃO SUMIR:
+    m.sets = setScores.map(set => `${set.p1}/${set.p2}`);
     
     if(type === 'group') {
         m.winnerId = setsWon1 > setsWon2 ? m.p1Id : m.p2Id;
@@ -2178,6 +2188,7 @@ if (cat.name && cat.name.toLowerCase().includes('absoluto livre jf') && type ===
         renderBracket();
     }
 
+    
     // =======================================================
     // MOTOR DE RECÁLCULO DE RATING (COM TRAVA INTELIGENTE E DIVISÕES) - INTACTO!
     // =======================================================
