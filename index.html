@@ -2148,24 +2148,38 @@ function confirmScore() {
     // CADEADO UNIVERSAL ARRUMADO (ACEITA 2 OU 3 VITÓRIAS)
     // =======================================================
        // =======================================================
-    // 👇 TRAVA CIRÚRGICA: BLOQUEIA 3º SET SE JÁ FOI 2x0 👇
-    if (setScores.length > 2) {
+    // 👇 TRAVA CIRÚRGICA DEFINITIVA (Lê o NOME e a FASE) 👇
+    const catAtual = getCurrentCategory();
+    const faseAtual = curMatch.type; // 'group' ou 'bracket'
+    
+    let vitoriasNecessarias = 3; // Padrão: 3 vitórias (Melhor de 5)
+
+    // A MÁGICA: Se o nome tem "3" (pra domingo) OU "x" (pro seu teste) E é fase de grupos -> 2 vitórias!
+    let nomeCat = catAtual.name ? catAtual.name.toLowerCase() : '';
+    if ((nomeCat.includes('3') || nomeCat.includes('x')) && faseAtual === 'group') {
+        vitoriasNecessarias = 2; 
+    }
+
+    // 1. Trava do 3º Set: Impede preencher o 3º set se já fez 2x0 na Melhor de 3
+    if (vitoriasNecessarias === 2 && setScores.length > 2) {
         let p1Fez2x0 = setScores[0].p1 > setScores[0].p2 && setScores[1].p1 > setScores[1].p2;
         let p2Fez2x0 = setScores[0].p2 > setScores[0].p1 && setScores[1].p2 > setScores[1].p1;
         if (p1Fez2x0 || p2Fez2x0) {
-            showToast('❌ O jogo já acabou em 2x0! Apague os valores do 3º set.', 'error');
+            showToast('❌ O jogo é Melhor de 3 e já acabou em 2x0! Apague os valores do 3º set.', 'error');
             return;
         }
     }
     // =======================================================
     
-    if (setsWon1 < 2 && setsWon2 < 2) {
-        showToast('❌ Faltam sets: O vencedor precisa de pelo menos 2 vitórias.', 'error');
+    // 2. Trava de Falta de Sets
+    if (setsWon1 < vitoriasNecessarias && setsWon2 < vitoriasNecessarias) {
+        showToast(`❌ Faltam sets: O vencedor precisa de ${vitoriasNecessarias} vitórias.`, 'error');
         return;
     }
     
-    if (setsWon1 > 3 || setsWon2 > 3) {
-        showToast('❌ Sets a mais! O limite máximo é de 3 vitórias.', 'error');
+    // 3. Trava de Excesso (AQUI O SEU 3X0 NA FASE DE GRUPOS É BLOQUEADO)
+    if (setsWon1 > vitoriasNecessarias || setsWon2 > vitoriasNecessarias) {
+        showToast(`❌ Sets a mais! A regra para esta fase exige no máximo ${vitoriasNecessarias} vitórias.`, 'error');
         return;
     }
     // =======================================================
