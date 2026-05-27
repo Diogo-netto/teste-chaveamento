@@ -1271,84 +1271,61 @@ function buildStatsForGroup(group, matches) {
 }
 
 function getSortedPlayersForGroup(cat, group) {
-    // Pegar as partidas do grupo
-    // Tratativa para garantir que puxamos do State/appData atualizado se cat.matches não estiver preenchido
-    const matchesSource = (cat.matches && cat.matches.length > 0) ? cat.matches : 
-                          (typeof appData !== 'undefined' ? appData.matches : []);
-    
+    const matchesSource = (cat.matches && cat.matches.length > 0) ? cat.matches : (typeof appData !== 'undefined' ? appData.matches : []);
     const groupMatches = matchesSource.filter(m => m.groupId === group.id && m.winnerId && m.winnerId !== 'bye');
-    
-    // Calcula o Stats GERAL de todo mundo (usado para classificação normal)
     const stats = typeof buildStatsForGroup === 'function' ? buildStatsForGroup(group, groupMatches) : {};
     
     let sorted = [...group.players].map(p => {
         const s = stats[p.id] || { wins: 0, setRatio: 0, pointRatio: 0, h2h: {} };
-        return { ...p, wins: s.wins, setRatio: s.setRatio, pointRatio: s.pointRatio, stats: s };
+        return { ...p, wins: s.wins, setRatio: s.setRatio, pointRatio: s.pointRatio, stats: s, miniSetRatio: 0, miniPointRatio: 0 };
     });
 
-    // Função interna que recalcula o Set/Point Ratio apenas entre jogadores específicos (Empate Triplo)
-    function calculateMiniStats(tiedPlayers) {
-        const tiedIds = tiedPlayers.map(p => p.id);
-        const miniMatches = groupMatches.filter(m => tiedIds.includes(m.p1Id) && tiedIds.includes(m.p2Id));
-        
-        let miniStats = {};
-        tiedIds.forEach(id => miniStats[id] = { sw: 0, sl: 0, pw: 0, pl: 0 });
+    let vitMap = {};
+    sorted.forEach(p => {
+        if(!vitMap[p.wins]) vitMap[p.wins] = [];
+        vitMap[p.wins].push(p);
+    });
 
-        miniMatches.forEach(m => {
-            const p1Set = parseInt(m.scoreP1) || 0;
-            const p2Set = parseInt(m.scoreP2) || 0;
-            const p1Pts = parseInt(m.pointsP1) || 0;
-            const p2Pts = parseInt(m.pointsP2) || 0;
+    Object.values(vitMap).forEach(tiedPlayers => {
+        if(tiedPlayers.length >= 3) {
+            const tiedIds = tiedPlayers.map(p => p.id);
+            const miniMatches = groupMatches.filter(m => tiedIds.includes(m.p1Id) && tiedIds.includes(m.p2Id));
+            let miniStats = {};
+            tiedIds.forEach(id => miniStats[id] = { sw: 0, sl: 0, pw: 0, pl: 0 });
 
-            miniStats[m.p1Id].sw += p1Set; miniStats[m.p1Id].sl += p2Set;
-            miniStats[m.p1Id].pw += p1Pts; miniStats[m.p1Id].pl += p2Pts;
-            
-            miniStats[m.p2Id].sw += p2Set; miniStats[m.p2Id].sl += p1Set;
-            miniStats[m.p2Id].pw += p2Pts; miniStats[m.p2Id].pl += p1Pts;
-        });
+            miniMatches.forEach(m => {
+                const p1Set = parseInt(m.scoreP1) || 0;
+                const p2Set = parseInt(m.scoreP2) || 0;
+                const p1Pts = parseInt(m.pointsP1) || 0;
+                const p2Pts = parseInt(m.pointsP2) || 0;
+                miniStats[m.p1Id].sw += p1Set; miniStats[m.p1Id].sl += p2Set; miniStats[m.p1Id].pw += p1Pts; miniStats[m.p1Id].pl += p2Pts;
+                miniStats[m.p2Id].sw += p2Set; miniStats[m.p2Id].sl += p1Set; miniStats[m.p2Id].pw += p2Pts; miniStats[m.p2Id].pl += p1Pts;
+            });
 
-        tiedPlayers.forEach(p => {
-            const ms = miniStats[p.id];
-            p.miniSetRatio = ms.sl === 0 ? ms.sw : ms.sw / ms.sl;
-            p.miniPointRatio = ms.pl === 0 ? ms.pw : ms.pw / ms.pl;
-        });
-    }
+            tiedPlayers.forEach(p => {
+                const ms = miniStats[p.id];
+                p.miniSetRatio = ms.sl === 0 ? ms.sw : ms.sw / ms.sl;
+                p.miniPointRatio = ms.pl === 0 ? ms.pw : ms.pw / ms.pl;
+            });
+        }
+    });
 
-    // A GRANDE ORDENAÇÃO
     sorted.sort((a, b) => {
-        // 1º Critério Supremo: Quem tem mais vitórias passa primeiro
         if (b.wins !== a.wins) return b.wins - a.wins; 
-        
-        // Pega todos que estão com esse exato número de vitórias
-        let tied = sorted.filter(p => p.wins === a.wins);
-        
-        // EMPATE DUPLO: Confronto Direto
+        let tied = vitMap[a.wins];
         if (tied.length === 2) {
             let winnerId = a.stats.h2h[b.id];
             if (winnerId) return winnerId === b.id ? 1 : -1;
         }
-        
-        // EMPATE TRIPLO OU MAIS: Descarte do "Pato"
         if (tied.length >= 3) {
-            // Recalcula as médias de set e ponto apenas entre eles
-            calculateMiniStats(tied);
-            
-            // Empate Triplo: Desempata pelo Set Ratio do confronto direto
-            if (Math.abs(b.miniSetRatio - a.miniSetRatio) > 0.001) {
-                return b.miniSetRatio - a.miniSetRatio;
-            }
-            
-            // Empate Triplo: Se empatou no Set Ratio, vai pros Pontos Corridos do confronto direto
-            if (Math.abs(b.miniPointRatio - a.miniPointRatio) > 0.001) {
-                return b.miniPointRatio - a.miniPointRatio;
-            }
+            if (Math.abs(b.miniSetRatio - a.miniSetRatio) > 0.001) return b.miniSetRatio - a.miniSetRatio;
+            if (Math.abs(b.miniPointRatio - a.miniPointRatio) > 0.001) return b.miniPointRatio - a.miniPointRatio;
         }
-        
-        // Se a zica for gigantesca e ainda empatar tudo, usa o Ratio Geral como último recurso
         if(b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
         return b.pointRatio - a.pointRatio;
     });
 
+    group.players.splice(0, group.players.length, ...sorted);
     return sorted;
 }
 
@@ -1529,8 +1506,12 @@ function renderGroups() {
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
             <div class="bg-slate-800 text-white p-3 flex justify-between items-center"><h3 class="font-bold">${g.name}</h3> <span class="text-xs bg-slate-700 px-2 py-1 rounded">${g.players.length} Atletas</span></div>
             <div class="p-2">
-                <table class="w-full text-sm text-left"><thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th class="p-1">Pos</th><th class="p-1">Atleta</th><th class="p-1 text-center" title="Vitórias">V</th><th class="p-1 text-center" title="Set Ratio">SR</th></tr></thead>
-                <tbody>${sorted.map((p,i) => `<tr class="border-b ${i<2?'bg-green-50':''}"><td class="p-1 font-bold ${i<2?'text-green-700':''}">${i+1}º</td><td class="p-1 truncate max-w-[120px]">${p.name}</td><td class="p-1 text-center font-bold">${p.wins}</td><td class="p-1 text-center text-xs">${p.setRatio.toFixed(1)}</td></tr>`).join('')}</tbody></table>
+                <table class="w-full text-sm text-left"><thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th class="p-1">Pos</th><th class="p-1">Atleta</th><th class="p-1 text-center" title="Vitórias">V</th><th class="p-1 text-center" title="Desempate (SR/PR)">R</th></tr></thead>
+                <tbody>${sorted.map((p,i) => {
+                    // MÁGICA VISUAL: Se a matemática do empate ativou o Point Ratio, mostra ele na tela. Senão, mostra o Set Ratio normal.
+                    const displayRatio = (p.miniPointRatio && p.miniPointRatio > 0) ? p.miniPointRatio : p.setRatio;
+                    return `<tr class="border-b ${i<2?'bg-green-50':''}"><td class="p-1 font-bold ${i<2?'text-green-700':''}">${i+1}º</td><td class="p-1 truncate max-w-[120px]">${p.name}</td><td class="p-1 text-center font-bold">${p.wins}</td><td class="p-1 text-center text-xs">${displayRatio.toFixed(2)}</td></tr>`;
+                }).join('')}</tbody></table>
             </div>
             <div class="bg-gray-50 p-2 space-y-2 flex-1 overflow-y-auto max-h-[300px]">
                 ${matches.map((m, idx) => {
@@ -1557,6 +1538,9 @@ ${m.setScores && m.setScores.length ? `<span class="text-[10px] text-gray-500 mt
     const btn = document.getElementById('finishGroupsBtn');
     if(btn) btn.classList.toggle('hidden', !allDone);
 }
+// =======================================================================
+// BRACKET HÍBRIDO (Modo Padrão + ALTM 5 Grupos + 3 Grupos + Modo Divisão ABCD)
+// =======================================================================
 // =======================================================================
 // BRACKET HÍBRIDO (Modo Padrão + ALTM 5 Grupos + 3 Grupos + Modo Divisão ABCD)
 // =======================================================================
@@ -1595,16 +1579,15 @@ function finalizeGroups(mode = 'standard') {
         // 🔥 A MÁGICA DA ESCOLHA ACONTECE AQUI 🔥
         if(sorted[3]) {
             if (juntarNaSerieC) {
-                // Opção 2: Padrão Lima Duarte (junta no C)
                 splitQualifiers['C'].push({...sorted[3], rank:3.5, gIdx: idx, gName: g.name});
             } else {
-                // Opção 1: Padrão Varginha (vai pro D normal)
                 splitQualifiers['D'].push({...sorted[3], rank:4, gIdx: idx, gName: g.name});
             }
         }
     });
 
     if (mode === 'split') {
+        // ... (código do Olympic Bracket intocado, ocultado para brevidade)
         const generateOlympicBracket = (playersList, prefix) => {
             if(playersList.length < 2) return null;
             let size = 2; while(size < playersList.length) size *= 2;
@@ -1678,7 +1661,7 @@ function finalizeGroups(mode = 'standard') {
     let matchId = 1;
 
     if (numGroups === 3) {
-        // LÓGICA EXCLUSIVA PARA 3 GRUPOS
+        // LÓGICA 3 GRUPOS INTACTA
         const p1A = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1ºA', id:'g1a'};
         const p1B = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1ºB', id:'g1b'};
         const p1C = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1ºC', id:'g1c'};
@@ -1711,9 +1694,7 @@ function finalizeGroups(mode = 'standard') {
         rounds.push([mFinal]);
 
     } else if (numGroups === 5) {
-        // ========================================================
-        // NOVIDADE: LÓGICA OFICIAL DA ALTM PARA 5 GRUPOS (Adulto)
-        // ========================================================
+        // LÓGICA 5 GRUPOS INTACTA
         const p1A = qualifiers.find(q => q.rank === 1 && q.gIdx === 0) || {name:'1ºA', id:'g1a'};
         const p1B = qualifiers.find(q => q.rank === 1 && q.gIdx === 1) || {name:'1ºB', id:'g1b'};
         const p1C = qualifiers.find(q => q.rank === 1 && q.gIdx === 2) || {name:'1ºC', id:'g1c'};
@@ -1726,38 +1707,21 @@ function finalizeGroups(mode = 'standard') {
         const p2E = qualifiers.find(q => q.rank === 2 && q.gIdx === 4) || {name:'2ºE', id:'g2e'};
         const bye = {name: 'BYE', id: 'bye'};
 
-        // ORDEM MÁGICA DA ALTM
         let altm16 = [
-            p1A, bye, 
-            p2B, p2C, 
-            p1E, bye, 
-            bye, p1D, 
-            p1C, bye, 
-            p2E, bye, 
-            p1B, bye, 
-            p2D, p2A
+            p1A, bye, p2B, p2C, p1E, bye, bye, p1D, p1C, bye, p2E, bye, p1B, bye, p2D, p2A
         ];
 
-        // OITAVAS DE FINAL
         let r1 = [];
         for(let i=0; i < 8; i++) {
-            let p1 = altm16[i * 2];
-            let p2 = altm16[i * 2 + 1];
+            let p1 = altm16[i * 2]; let p2 = altm16[i * 2 + 1];
             let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
-            
-            // Avança automaticamente quem tirou BYE
-            if (m.p1.id === 'bye' && m.p2.id === 'bye') {
-                m.winner = bye; m.scoreP1 = 0; m.scoreP2 = 0;
-            } else if (m.p1.id === 'bye') { 
-                m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; 
-            } else if (m.p2.id === 'bye') { 
-                m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; 
-            }
+            if (m.p1.id === 'bye' && m.p2.id === 'bye') { m.winner = bye; m.scoreP1 = 0; m.scoreP2 = 0; }
+            else if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; }
+            else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; }
             r1.push(m);
         }
         rounds.push(r1);
 
-        // QUARTAS, SEMI E FINAL
         for(let r=2; r<=4; r++) {
             let prev = rounds[rounds.length-1]; let next = [];
             for(let i=0; i<prev.length; i+=2) {
@@ -1765,7 +1729,62 @@ function finalizeGroups(mode = 'standard') {
                 let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
                 let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
                 let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
-                
+                m1.nextId = nm.id; m2.nextId = nm.id;
+                next.push(nm);
+            }
+            rounds.push(next);
+        }
+
+    } else if (numGroups === 15) {
+        // =======================================================
+        // 🔥 INJEÇÃO CIRÚRGICA: LÓGICA DO LUCAS PARA 15 GRUPOS 🔥
+        // =======================================================
+        const getP = (rank, gLetter) => {
+            const gIndex = gLetter.charCodeAt(0) - 65; // A=0, B=1...
+            return qualifiers.find(q => q.rank === rank && q.gIdx === gIndex) || {name: `${rank}º Grupo ${gLetter}`, id: `g${rank}${gLetter.toLowerCase()}`};
+        };
+        const bye = {name: 'BYE', id: 'bye'};
+
+        // 32 posições de 16 avos, EXATAMENTE como o Preview
+        let lucas32 = [
+            getP(1, 'A'), bye,
+            getP(2, 'B'), getP(2, 'O'),
+            getP(1, 'I'), getP(2, 'J'),
+            getP(2, 'G'), getP(1, 'H'),
+            getP(1, 'E'), getP(2, 'F'),
+            getP(2, 'K'), getP(1, 'L'),
+            getP(1, 'M'), getP(2, 'N'),
+            getP(2, 'C'), getP(1, 'D'),
+
+            getP(1, 'C'), getP(2, 'D'),
+            getP(2, 'M'), getP(1, 'N'),
+            getP(1, 'K'), getP(2, 'L'),
+            getP(2, 'E'), getP(1, 'F'),
+            getP(1, 'G'), getP(2, 'H'),
+            getP(2, 'I'), getP(1, 'J'),
+            getP(1, 'O'), getP(2, 'A'),
+            bye, getP(1, 'B')
+        ];
+
+        let r1 = [];
+        for(let i=0; i < 16; i++) {
+            let p1 = lucas32[i * 2]; let p2 = lucas32[i * 2 + 1];
+            let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
+            if (m.p1.id === 'bye' && m.p2.id === 'bye') { m.winner = bye; m.scoreP1 = 0; m.scoreP2 = 0; }
+            else if (m.p1.id === 'bye') { m.winner = m.p2; m.scoreP2 = 3; m.scoreP1 = 0; }
+            else if (m.p2.id === 'bye') { m.winner = m.p1; m.scoreP1 = 3; m.scoreP2 = 0; }
+            r1.push(m);
+        }
+        rounds.push(r1);
+
+        // Propaga rodadas 2 (Oitavas), 3 (Quartas), 4 (Semi) e 5 (Final)
+        for(let r=2; r<=5; r++) {
+            let prev = rounds[rounds.length-1]; let next = [];
+            for(let i=0; i<prev.length; i+=2) {
+                let m1 = prev[i], m2 = prev[i+1];
+                let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
+                let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
+                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
                 m1.nextId = nm.id; m2.nextId = nm.id;
                 next.push(nm);
             }
@@ -1820,7 +1839,6 @@ function finalizeGroups(mode = 'standard') {
     cat.bracket = { rounds }; cat.status = 'bracket';
     save(); switchTab('bracket'); updateDashboard();
 }
-
 
 
 
@@ -1968,39 +1986,24 @@ function generateBracketPreview() {
     const cat = getCurrentCategory();
     const numGroups = cat.groups && cat.groups.length ? cat.groups.length : 0;
     
-    if (numGroups === 0) return `<p>Sorteie os grupos primeiro.</p>`;
+    // Se o Lucas não sorteou os grupos ainda, ele avisa na tela e não tenta desenhar
+    if (numGroups === 0) return `<div class="text-center p-4 text-gray-500 font-bold">⚠️ Sorteie os grupos primeiro para ver o cruzamento do mata-mata.</div>`;
 
     let matches = [];
     
-    // REGRA EXCLUSIVA PARA 3 GRUPOS (Chave de 6 com 2 BYEs)
+    // =======================================================
+    // REGRA EXCLUSIVA PARA 3 GRUPOS
+    // =======================================================
     if (numGroups === 3) {
-        // As Quartas de Final de 3 grupos exigem posições fixas para não cruzar pessoas do mesmo grupo.
-        matches.push({
-            p1: { name: `1º Grupo A`, id: `preview-0-1`, rank: 1 },
-            p2: { name: `BYE`, id: `bye` },
-            id: `preview-0`
-        });
-        matches.push({
-            p1: { name: `2º Grupo B`, id: `preview-1-2`, rank: 2 },
-            p2: { name: `2º Grupo C`, id: `preview-2-2`, rank: 2 },
-            id: `preview-1`
-        });
-        matches.push({
-            p1: { name: `1º Grupo C`, id: `preview-2-1`, rank: 1 },
-            p2: { name: `2º Grupo A`, id: `preview-0-2`, rank: 2 },
-            id: `preview-2`
-        });
-        matches.push({
-            p1: { name: `BYE`, id: `bye` },
-            p2: { name: `1º Grupo B`, id: `preview-1-1`, rank: 1 },
-            id: `preview-3`
-        });
+        matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `BYE` }, id: `preview-0` });
+        matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `2º Grupo C` }, id: `preview-1` });
+        matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `2º Grupo A` }, id: `preview-2` });
+        matches.push({ p1: { name: `BYE` }, p2: { name: `1º Grupo B` }, id: `preview-3` });
     } 
     // =======================================================
-    // MUDANÇA CIRÚRGICA: REGRA EXCLUSIVA PARA 5 GRUPOS (ALTM)
+    // REGRA EXCLUSIVA PARA 5 GRUPOS (ALTM)
     // =======================================================
     else if (numGroups === 5) {
-        // Posições fixadas EXATAMENTE como no papel da ALTM
         matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `BYE` }, id: `preview-0` });
         matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `2º Grupo C` }, id: `preview-1` });
         matches.push({ p1: { name: `1º Grupo E` }, p2: { name: `BYE` }, id: `preview-2` });
@@ -2011,8 +2014,31 @@ function generateBracketPreview() {
         matches.push({ p1: { name: `2º Grupo D` }, p2: { name: `2º Grupo A` }, id: `preview-7` });
     }
     // =======================================================
+    // MOLDE MANUAL DO LUCAS PARA 15 GRUPOS
+    // =======================================================
+    else if (numGroups === 15) {
+        matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `BYE` }, id: `preview-0` });
+        matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `2º Grupo O` }, id: `preview-1` });
+        matches.push({ p1: { name: `1º Grupo I` }, p2: { name: `2º Grupo J` }, id: `preview-2` });
+        matches.push({ p1: { name: `2º Grupo G` }, p2: { name: `1º Grupo H` }, id: `preview-3` });
+        matches.push({ p1: { name: `1º Grupo E` }, p2: { name: `2º Grupo F` }, id: `preview-4` });
+        matches.push({ p1: { name: `2º Grupo K` }, p2: { name: `1º Grupo L` }, id: `preview-5` });
+        matches.push({ p1: { name: `1º Grupo M` }, p2: { name: `2º Grupo N` }, id: `preview-6` });
+        matches.push({ p1: { name: `2º Grupo C` }, p2: { name: `1º Grupo D` }, id: `preview-7` });
+
+        matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `2º Grupo D` }, id: `preview-8` });
+        matches.push({ p1: { name: `2º Grupo M` }, p2: { name: `1º Grupo N` }, id: `preview-9` });
+        matches.push({ p1: { name: `1º Grupo K` }, p2: { name: `2º Grupo L` }, id: `preview-10` });
+        matches.push({ p1: { name: `2º Grupo E` }, p2: { name: `1º Grupo F` }, id: `preview-11` });
+        matches.push({ p1: { name: `1º Grupo G` }, p2: { name: `2º Grupo H` }, id: `preview-12` });
+        matches.push({ p1: { name: `2º Grupo I` }, p2: { name: `1º Grupo J` }, id: `preview-13` });
+        matches.push({ p1: { name: `1º Grupo O` }, p2: { name: `2º Grupo A` }, id: `preview-14` });
+        matches.push({ p1: { name: `BYE` }, p2: { name: `1º Grupo B` }, id: `preview-15` });
+    }
+    // =======================================================
+    // MOTOR GENÉRICO (Para 2, 4, 8 grupos, etc)
+    // =======================================================
     else {
-        // SE FOR OUTRA QUANTIDADE DE GRUPOS, USA A LÓGICA PADRÃO (Genérica)
         let qualifiers = [];
         cat.groups.forEach((g, idx) => {
             qualifiers.push({name: `1º ${g.name}`, id: `preview-${idx}-1`, rank: 1});
@@ -2022,27 +2048,79 @@ function generateBracketPreview() {
         let size = 2;
         while(size < qualifiers.length) size *= 2;
         
-        for(let i = 0; i < size; i += 2) {
-            const p1 = qualifiers[i] || {name:'BYE', id:'bye'};
-            const p2 = qualifiers[size-1-i] || {name:'BYE', id:'bye'};
-            
-            matches.push({
-                p1: p1, p2: p2, id: `preview-${i}`
-            });
+        qualifiers.sort((a,b) => a.rank - b.rank);
+
+        const getSeedingPattern = (n) => {
+            let rds = [1, 2];
+            for (let r = 2; r < n; r *= 2) {
+                let next = [];
+                for (let i = 0; i < rds.length; i++) { 
+                    next.push(rds[i]); 
+                    next.push((r * 2 + 1) - rds[i]); 
+                }
+                rds = next;
+            }
+            return rds;
+        };
+
+        const pattern = getSeedingPattern(size);
+        
+        for(let i = 0; i < size/2; i++) {
+            const p1 = qualifiers[pattern[i * 2] - 1] || {name:'BYE', id:'bye'};
+            const p2 = qualifiers[pattern[i * 2 + 1] - 1] || {name:'BYE', id:'bye'};
+            matches.push({ p1: p1, p2: p2, id: `preview-${i}` });
         }
     }
     
-    // Monta rodadas subsequentes (Semifinal e Final)
+    // =======================================================
+    // 🔥 BLINDAGEM ANTI-QUEDA (Propagação Inteligente) 🔥
+    // =======================================================
     let rounds = [matches];
     let totalRounds = Math.log2(matches.length * 2);
     
+    // Essa função agora tem try-catch. Se der erro, ela não quebra a tela!
+    const processNames = (pA, pB) => {
+        try {
+            let strA = pA ? String(pA) : "BYE";
+            let strB = pB ? String(pB) : "BYE";
+
+            if (strA === 'BYE' && strB === 'BYE') return "BYE";
+            if (strA === 'BYE') return strB.replace(/Grupo /g, "");
+            if (strB === 'BYE') return strA.replace(/Grupo /g, "");
+
+            let nA = strA.replace(/Grupo /g, "");
+            let nB = strB.replace(/Grupo /g, "");
+
+            let escopoA = nA;
+            let escopoB = nB;
+
+            if (nA.includes("Venc.")) {
+                escopoA = nA.replace("Venc. ", "").split("/")[0].split("...")[0];
+            }
+            if (nB.includes("Venc.")) {
+                escopoB = nB.replace("Venc. ", "").split("/").pop().split("...").pop();
+            }
+
+            if (nA.includes("Venc.") || nB.includes("Venc.")) {
+                return `Venc. ${escopoA}...${escopoB}`;
+            } else {
+                return `Venc. ${nA}/${nB}`;
+            }
+        } catch(e) {
+            return "Venc."; // Texto de emergência se der falha grave
+        }
+    };
+
     for(let r = 2; r <= totalRounds; r++) {
         let prev = rounds[rounds.length-1];
         let next = [];
         for(let i = 0; i < prev.length; i += 2) {
+            let nextNameP1 = processNames(prev[i].p1.name, prev[i].p2.name);
+            let nextNameP2 = processNames(prev[i+1].p1.name, prev[i+1].p2.name);
+
             next.push({
-                p1: {name: `Venc. J${prev[i].id.split('-').pop()}`, id: null},
-                p2: {name: `Venc. J${prev[i+1].id.split('-').pop()}`, id: null},
+                p1: {name: nextNameP1, id: null},
+                p2: {name: nextNameP2, id: null},
                 id: `preview-r${r}-${i}`
             });
         }
@@ -2057,7 +2135,8 @@ function generateBracketPreview() {
             if (roundsLeft === 1) name = 'FINAL';
             else if (roundsLeft === 2) name = 'SEMIFINAL';
             else if (roundsLeft === 3) name = 'QUARTAS DE FINAL';
-            else if (roundsLeft === 4) name = 'OITAVAS DE FINAL'; // Adicionado para garantir o nome certo na chave de 16
+            else if (roundsLeft === 4) name = 'OITAVAS DE FINAL';
+            else if (roundsLeft === 5) name = 'DEZESSEIS AVOS';
 
             return `
             <div class="round-column">
@@ -2067,14 +2146,14 @@ function generateBracketPreview() {
                         return `
                         <div class="match-card pending opacity-60 cursor-default" style="border-left-color: #fbbf24;">
                             <div class="flex justify-between mb-1">
-                                <span class="truncate w-28 text-xs">${m.p1.name}</span>
-                                <span class="bg-gray-100 px-1 rounded text-xs">-</span>
+                                <span class="truncate w-36 text-[10px]" title="${m.p1.name}">${m.p1.name}</span>
+                                <span class="bg-gray-100 px-1 rounded text-[10px]">-</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="truncate w-28 text-xs">${m.p2.name}</span>
-                                <span class="bg-gray-100 px-1 rounded text-xs">-</span>
+                                <span class="truncate w-36 text-[10px]" title="${m.p2.name}">${m.p2.name}</span>
+                                <span class="bg-gray-100 px-1 rounded text-[10px]">-</span>
                             </div>
-                            <div class="text-[10px] text-gray-400 text-center mt-1">Previsto</div>
+                            <div class="text-[9px] text-gray-400 text-center mt-1">Previsto</div>
                         </div>`
                     }).join('')}
                 </div>
