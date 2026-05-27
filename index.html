@@ -1126,12 +1126,38 @@ function resetSystem() {
     if(confirm('Tem certeza? Isso apagará TUDO!')) { localStorage.removeItem(STORAGE_KEY); location.reload(); }
 }
 
-// BACKUP
+// BACKUP BLINDADO (Suporta dados gigantes sem travar a tela)
 function downloadBackup() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(State.categories));
-    const a = document.createElement('a');
-    a.href = dataStr; a.download = "backup_altm_" + new Date().toISOString().slice(0,10) + ".json";
-    document.body.appendChild(a); a.click(); a.remove();
+    try {
+        // Pega exatamente a sua variável de Estado
+        const jsonStr = JSON.stringify(State.categories);
+        
+        // Cria um "Blob" (um arquivo real na memória, sem limite de tamanho)
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Adiciona a Data e a Hora no nome para você saber exatamente de que horas o Lucas mandou
+        const dataAtual = new Date();
+        const dataFormatada = dataAtual.toISOString().slice(0, 10);
+        const hora = dataAtual.getHours() + "h" + dataAtual.getMinutes();
+        
+        a.download = `backup_altm_${dataFormatada}_${hora}.json`;
+        
+        // Executa o download
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpa a memória para não pesar o navegador do Lucas
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+    } catch (error) {
+        alert("Erro ao gerar o backup. Tente novamente.");
+        console.error("Falha no backup:", error);
+    }
 }
 function restoreBackup(input) {
     const file = input.files[0];
@@ -1791,6 +1817,52 @@ function finalizeGroups(mode = 'standard') {
             rounds.push(next);
         }
 
+
+        } else if (numGroups === 8) {
+        // =======================================================
+        // 🔥 REGRA OFICIAL CBTM PARA EXATOS 8 GRUPOS (16 POSIÇÕES) 🔥
+        // =======================================================
+        const getP = (rank, gLetter) => {
+            const gIndex = gLetter.charCodeAt(0) - 65; // A=0, B=1...
+            return qualifiers.find(q => q.rank === rank && q.gIdx === gIndex) || {name: `${rank}º Grupo ${gLetter}`, id: `g${rank}${gLetter.toLowerCase()}`};
+        };
+
+        // Mapa manual cravado com regras de separação da CBTM:
+        // 1ºA no topo, 1ºB no fundo. Nenhum 1º cruza com o 2º do seu próprio grupo do mesmo lado.
+        let cbtm16 = [
+            getP(1, 'A'), getP(2, 'H'),
+            getP(2, 'D'), getP(1, 'E'),
+            getP(1, 'C'), getP(2, 'F'),
+            getP(2, 'B'), getP(1, 'G'),
+            
+            getP(1, 'H'), getP(2, 'A'),
+            getP(2, 'E'), getP(1, 'D'),
+            getP(1, 'F'), getP(2, 'C'),
+            getP(2, 'G'), getP(1, 'B')
+        ];
+
+        let r1 = [];
+        for(let i=0; i < 8; i++) {
+            let p1 = cbtm16[i * 2]; let p2 = cbtm16[i * 2 + 1];
+            let m = { id: `b-r1-${matchId++}`, round: 1, p1: {name:p1.name, id:p1.id}, p2: {name:p2.name, id:p2.id}, scoreP1: null, scoreP2: null, winner: null };
+            r1.push(m);
+        }
+        rounds.push(r1);
+
+        // Propaga rodadas 2 (Quartas), 3 (Semi) e 4 (Final)
+        for(let r=2; r<=4; r++) {
+            let prev = rounds[rounds.length-1]; let next = [];
+            for(let i=0; i<prev.length; i+=2) {
+                let m1 = prev[i], m2 = prev[i+1];
+                let p1Name = m1.winner ? m1.winner.name : `Venc. J${m1.id.split('-').pop()}`;
+                let p2Name = m2.winner ? m2.winner.name : `Venc. J${m2.id.split('-').pop()}`;
+                let nm = { id: `b-r${r}-${matchId++}`, round: r, p1: {name: p1Name, id: m1.winner ? m1.winner.id : null}, p2: {name: p2Name, id: m2.winner ? m2.winner.id : null}, scoreP1: null, scoreP2: null, winner: null, sources: [m1.id, m2.id] };
+                m1.nextId = nm.id; m2.nextId = nm.id;
+                next.push(nm);
+            }
+            rounds.push(next);
+        }
+
     } else {
         // =======================================================
         // LÓGICA PADRÃO PARA 2, 4 OU 8 GRUPOS (MANTIDA INTACTA)
@@ -2035,6 +2107,26 @@ function generateBracketPreview() {
         matches.push({ p1: { name: `1º Grupo O` }, p2: { name: `2º Grupo A` }, id: `preview-14` });
         matches.push({ p1: { name: `BYE` }, p2: { name: `1º Grupo B` }, id: `preview-15` });
     }
+
+
+    // =======================================================
+    // REGRA EXCLUSIVA PARA 8 GRUPOS (CBTM - 16 ATLETAS)
+    // =======================================================
+    else if (numGroups === 8) {
+        matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `2º Grupo H` }, id: `preview-0` });
+        matches.push({ p1: { name: `2º Grupo D` }, p2: { name: `1º Grupo E` }, id: `preview-1` });
+        matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `2º Grupo F` }, id: `preview-2` });
+        matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `1º Grupo G` }, id: `preview-3` });
+        
+        matches.push({ p1: { name: `1º Grupo H` }, p2: { name: `2º Grupo A` }, id: `preview-4` });
+        matches.push({ p1: { name: `2º Grupo E` }, p2: { name: `1º Grupo D` }, id: `preview-5` });
+        matches.push({ p1: { name: `1º Grupo F` }, p2: { name: `2º Grupo C` }, id: `preview-6` });
+        matches.push({ p1: { name: `2º Grupo G` }, p2: { name: `1º Grupo B` }, id: `preview-7` });
+    }
+
+
+
+    
     // =======================================================
     // MOTOR GENÉRICO (Para 2, 4, 8 grupos, etc)
     // =======================================================
