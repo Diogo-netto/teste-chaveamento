@@ -1818,27 +1818,26 @@ function finalizeGroups(mode = 'standard') {
         }
 
 
-        } else if (numGroups === 8) {
+       } else if (numGroups === 8) {
         // =======================================================
-        // 🔥 REGRA OFICIAL CBTM PARA EXATOS 8 GRUPOS (16 POSIÇÕES) 🔥
+        // 🔥 REGRA DE 8 GRUPOS (Chaveamento Fixo Simétrico) 🔥
         // =======================================================
         const getP = (rank, gLetter) => {
             const gIndex = gLetter.charCodeAt(0) - 65; // A=0, B=1...
             return qualifiers.find(q => q.rank === rank && q.gIdx === gIndex) || {name: `${rank}º Grupo ${gLetter}`, id: `g${rank}${gLetter.toLowerCase()}`};
         };
 
-        // Mapa manual cravado com regras de separação da CBTM:
-        // 1ºA no topo, 1ºB no fundo. Nenhum 1º cruza com o 2º do seu próprio grupo do mesmo lado.
+        // Mapa manual exigido: Fixo Simétrico (A com B, C com D, etc.)
         let cbtm16 = [
-            getP(1, 'A'), getP(2, 'H'),
-            getP(2, 'D'), getP(1, 'E'),
-            getP(1, 'C'), getP(2, 'F'),
-            getP(2, 'B'), getP(1, 'G'),
+            getP(1, 'A'), getP(2, 'B'),
+            getP(1, 'H'), getP(2, 'G'),
+            getP(1, 'E'), getP(2, 'F'),
+            getP(1, 'D'), getP(2, 'C'),
             
-            getP(1, 'H'), getP(2, 'A'),
-            getP(2, 'E'), getP(1, 'D'),
-            getP(1, 'F'), getP(2, 'C'),
-            getP(2, 'G'), getP(1, 'B')
+            getP(1, 'C'), getP(2, 'D'),
+            getP(1, 'F'), getP(2, 'E'),
+            getP(1, 'G'), getP(2, 'H'),
+            getP(1, 'B'), getP(2, 'A')
         ];
 
         let r1 = [];
@@ -2110,19 +2109,19 @@ function generateBracketPreview() {
 
 
     // =======================================================
-    // REGRA EXCLUSIVA PARA 8 GRUPOS (CBTM - 16 ATLETAS)
-    // =======================================================
-    else if (numGroups === 8) {
-        matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `2º Grupo H` }, id: `preview-0` });
-        matches.push({ p1: { name: `2º Grupo D` }, p2: { name: `1º Grupo E` }, id: `preview-1` });
-        matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `2º Grupo F` }, id: `preview-2` });
-        matches.push({ p1: { name: `2º Grupo B` }, p2: { name: `1º Grupo G` }, id: `preview-3` });
-        
-        matches.push({ p1: { name: `1º Grupo H` }, p2: { name: `2º Grupo A` }, id: `preview-4` });
-        matches.push({ p1: { name: `2º Grupo E` }, p2: { name: `1º Grupo D` }, id: `preview-5` });
-        matches.push({ p1: { name: `1º Grupo F` }, p2: { name: `2º Grupo C` }, id: `preview-6` });
-        matches.push({ p1: { name: `2º Grupo G` }, p2: { name: `1º Grupo B` }, id: `preview-7` });
-    }
+        // REGRA DE 8 GRUPOS (Chaveamento Fixo Simétrico)
+        // =======================================================
+        else if (numGroups === 8) {
+            matches.push({ p1: { name: `1º Grupo A` }, p2: { name: `2º Grupo B` }, id: `preview-0` });
+            matches.push({ p1: { name: `1º Grupo H` }, p2: { name: `2º Grupo G` }, id: `preview-1` });
+            matches.push({ p1: { name: `1º Grupo E` }, p2: { name: `2º Grupo F` }, id: `preview-2` });
+            matches.push({ p1: { name: `1º Grupo D` }, p2: { name: `2º Grupo C` }, id: `preview-3` });
+            
+            matches.push({ p1: { name: `1º Grupo C` }, p2: { name: `2º Grupo D` }, id: `preview-4` });
+            matches.push({ p1: { name: `1º Grupo F` }, p2: { name: `2º Grupo E` }, id: `preview-5` });
+            matches.push({ p1: { name: `1º Grupo G` }, p2: { name: `2º Grupo H` }, id: `preview-6` });
+            matches.push({ p1: { name: `1º Grupo B` }, p2: { name: `2º Grupo A` }, id: `preview-7` });
+        }
 
 
 
