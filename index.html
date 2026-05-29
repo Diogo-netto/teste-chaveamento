@@ -2420,9 +2420,9 @@ function openScoreModal(type, mid) {
 // =========================================
 let maxSets = 5; // Regra Padrão: 5 sets para todo mundo (Sábado inteiro, Mata-Mata, etc)
 
-// Cadeado VIP: Só ativa se o nome tiver o número "3" E for fase de grupos
-if (cat.name && cat.name.toLowerCase().includes('x') && type === 'group') {
-    maxSets = 3;
+// Cadeado VIP: Só ativa se o nome tiver a flag oculta "#" E for fase de grupos
+if (cat.name && cat.name.includes('#') && type === 'group') {
+ maxSets = 3;
 }
     
     let setsHtml = '';
@@ -2521,11 +2521,11 @@ function confirmScore() {
     
     let vitoriasNecessarias = 3; // Padrão: 3 vitórias (Melhor de 5)
 
-    // A MÁGICA: Se o nome tem "3" (pra domingo) OU "x" (pro seu teste) E é fase de grupos -> 2 vitórias!
-    let nomeCat = catAtual.name ? catAtual.name.toLowerCase() : '';
-    if ((nomeCat.includes('3') || nomeCat.includes('x')) && faseAtual === 'group') {
-        vitoriasNecessarias = 2; 
-    }
+// A MÁGICA: Se o nome tem a flag "#" E é fase de grupos -> 2 vitórias (Melhor de 3)!
+let nomeCat = catAtual.name ? catAtual.name : '';
+if (nomeCat.includes('#') && faseAtual === 'group') {
+vitoriasNecessarias = 2; 
+}
 
     // 1. Trava do 3º Set: Impede preencher o 3º set se já fez 2x0 na Melhor de 3
     if (vitoriasNecessarias === 2 && setScores.length > 2) {
